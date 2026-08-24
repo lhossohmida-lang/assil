@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475319923088",
+    "project_id": "mesan-869c2",
+    "storage_bucket": "mesan-869c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475319923088:android:2bca5d4a873abec1e64315",
+        "android_client_info": {
+          "package_name": "KMSAN.APP"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDHjZeRP0Zlqcj7MECeP7y6M6rqYh54TI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

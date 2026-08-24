@@ -1,0 +1,6 @@
+# انسخ هذا الملف إلى android/key.properties بعد إنشاء المفتاح.
+# ⚠️ key.properties و *.jks مستثنيان في .gitignore — لا يُرفعان أبداً.
+storePassword=كلمة_سرّ_المخزن
+keyPassword=كلمة_سرّ_المفتاح
+keyAlias=kmsan
+storeFile=C:/مسار/آمن/kmsan-release.jks

@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /user_store_map/{uid} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      // صاحب المحل يُنشئ خريطة عامله الجديد — create فقط، ولمتجره هو فقط
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['storeId','role'])
+        && request.resource.data.role == 'employee'
+        && belongsToStore(request.auth.uid, request.resource.data.storeId);
+    }
+
+    match /stores/{storeId}/{document=**} {
+      allow read, write: if request.auth != null && belongsToStore(request.auth.uid, storeId);
+    }
+
+    match /publicCatalog/{storeId}/products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && belongsToStore(request.auth.uid, storeId);
+    }
+
+    // هوية المتجر الإلكتروني (اسم، جملة تعريفية، هاتف، روابط التواصل).
+    // مقروءة للجميع لأن الموقع يُحمّلها قبل تسجيل أي دخول، ومحصورة
+    // بقائمة بيضاء صريحة حتى لو أخطأ التطبيق يوماً وحاول نشر حقل زائد.
+    match /publicCatalog/{storeId}/meta/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && belongsToStore(request.auth.uid, storeId)
+        && request.resource.data.keys().hasOnly(
+             ['storeName','tagline','phone','facebookUrl','instagramUrl','updatedAt']);
+    }
+
+    match /publicOrders/{storeId}/orders/{orderId} {
+      allow create: if isValidOrder(request.resource.data);
+      allow read, update, delete: if request.auth != null && belongsToStore(request.auth.uid, storeId);
+    }
+
+    match /publicOrders/{storeId}/meta/{docId} {
+      allow read: if true;
+      allow create: if docId == 'counter'
+        && request.resource.data.keys().hasOnly(['year','value'])
+        && request.resource.data.value == 1;
+      allow update: if docId == 'counter'
+        && request.resource.data.keys().hasOnly(['year','value'])
+        && request.resource.data.value is int
+        && request.resource.data.value <= resource.data.value + 1;
+      allow delete: if request.auth != null && belongsToStore(request.auth.uid, storeId);
+    }
+
+    // ⚠️ الدوال داخل كتلة match — لو وُضعت خارجها فإن $(database) غير معرَّف
+    // و exists() لا يعمل إطلاقاً، فيفقد كل العمال صلاحياتهم بصمت.
+    // تحذير الترجمة "Invalid variable name: database" يعني بالضبط هذا العطل.
+    function belongsToStore(uid, storeId) {
+      return uid == storeId ||
+        exists(/databases/$(database)/documents/stores/$(storeId)/users/$(uid));
+    }
+
+    function isValidOrder(d) {
+      return d.keys().hasOnly(['orderNumber','type','customer','items','subtotal',
+                               'deliveryFee','total','deposit','status','statusHistory',
+                               'createdAt','updatedAt'])
+        && d.keys().hasAll(['orderNumber','type','customer','items','total','status'])
+        && d.status == 'pending'
+        && (d.type == 'purchase' || d.type == 'inquiry')
+        && d.items.size() > 0 && d.items.size() <= 50
+        && d.total is number && d.total >= 0 && d.total <= 100000000
+        && d.customer.fullName is string
+        && d.customer.fullName.size() >= 2 && d.customer.fullName.size() <= 120
+        && d.customer.phone is string
+        && d.customer.phone.size() >= 9 && d.customer.phone.size() <= 20
+        && d.customer.wilaya is string && d.customer.wilaya.size() <= 60
+        && (!('notes' in d.customer) || d.customer.notes.size() <= 500)
+        && (!('address' in d.customer) || d.customer.address.size() <= 300);
+    }
+  }
+}

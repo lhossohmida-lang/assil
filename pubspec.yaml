@@ -1,0 +1,72 @@
+name: kmsan
+description: "KMSAN — نقطة بيع ومخزون لمحل ألبسة"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # الحالة والتوجيه
+  flutter_riverpod: ^3.4.0
+  go_router: ^17.0.0
+
+  # Firebase (بلا Firebase Storage — يتطلب بطاقة بنكية)
+  firebase_core: ^4.0.0
+  cloud_firestore: ^6.0.0
+  firebase_auth: ^6.0.0
+
+  # أدوات عامة
+  shared_preferences: ^2.3.0
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  http: ^1.2.2
+  url_launcher: ^6.3.1
+  crypto: ^3.0.6
+  collection: ^1.19.0
+
+  # الرسوم البيانية
+  fl_chart: ^1.0.0
+
+  # الباركود والكاميرا
+  mobile_scanner: ^7.0.0
+  barcode_widget: ^2.0.4
+  barcode: ^2.2.9
+
+  # الصور (الضغط يدوياً بـ package:image — image_picker لا يضغط على ويندوز)
+  image_picker: ^1.1.2
+  image: ^4.3.0
+
+  # الطباعة
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  ffi: ^2.1.3
+
+  # الاستيراد
+  archive: ^4.0.0
+  xml: ^7.0.1
+  file_picker: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+    - assets/images/
+
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
