@@ -1036,4 +1036,14 @@ const Map<String, String> frenchStrings = <String, String>{
       'Importer des fournisseurs depuis un fichier',
   'استيراد كريديات من ملف':
       'Importer des crédits depuis un fichier',
+
+  // ─── اسم المستخدم في السجل ───
+  'اسمي في السجل': 'Mon nom dans le journal',
+  'حُفظ الاسم': 'Nom enregistré',
+  'تعذّر حفظ الاسم: {0}': 'Échec de l’enregistrement du nom : {0}',
+  'يظهر بالبنفسجي أمام كل فاتورة بعتها، وأمام حركات الصندوق.':
+      'Apparaît en violet devant chaque facture que vous avez vendue et devant les mouvements de caisse.',
+  'اسم المحل الافتراضي': 'Nom par défaut du magasin',
+  'يُغيَّر على الوصل من «محتوى الوصل»، وفي الموقع من «المتجر الإلكتروني».':
+      'Se modifie sur le ticket via « Contenu du ticket », et sur le site via « Boutique en ligne ».',
 };

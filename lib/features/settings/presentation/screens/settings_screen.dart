@@ -10,6 +10,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/formatters.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/common_widgets.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../printing/presentation/providers/printing_providers.dart';
 import '../../../printing/services/order_label_service.dart';
 import '../../../printing/services/print_service.dart';
@@ -179,19 +180,44 @@ class _StoreSection extends ConsumerStatefulWidget {
 
 class _StoreSectionState extends ConsumerState<_StoreSection> {
   final _vipCtrl = TextEditingController();
+  final _myNameCtrl = TextEditingController();
   bool _initialized = false;
 
   @override
   void dispose() {
     _vipCtrl.dispose();
+    _myNameCtrl.dispose();
     super.dispose();
+  }
+
+  /// يحفظ اسم المستخدم الحالي كما يظهر في السجل.
+  ///
+  /// عند أول دخول يُشتقّ الاسم من البريد (`dekuanis1123@…` ⇒
+  /// «dekuanis1123»)، وهو ما يراه صاحب المحل أمام كل فاتورة باعها.
+  /// تعديله هنا يجعل السجل مقروءاً.
+  Future<void> _saveMyName() async {
+    final user = ref.read(currentUserProvider);
+    final repo = ref.read(authRepositoryProvider);
+    final storeId = ref.read(storeIdProvider);
+    final name = _myNameCtrl.text.trim();
+    if (user == null || storeId == null || name.isEmpty) return;
+    if (name == user.name) return;
+
+    try {
+      await repo.updateEmployee(storeId, user.uid, {'name': name});
+      if (mounted) showOk(context, tr('حُفظ الاسم'));
+    } catch (e) {
+      if (mounted) showErr(context, trf('تعذّر حفظ الاسم: {0}', [e]));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(storeSettingsProvider).value;
+    final me = ref.watch(currentUserProvider);
     if (settings != null && !_initialized) {
       _vipCtrl.text = settings.vipDiscountPercent.toStringAsFixed(0);
+      _myNameCtrl.text = me?.name ?? '';
       _initialized = true;
     }
 
@@ -214,15 +240,37 @@ class _StoreSectionState extends ConsumerState<_StoreSection> {
             const SizedBox(height: 10),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(tr('اسم المحل على المطبوعات')),
+              title: Text(tr('اسم المحل الافتراضي')),
               subtitle: Text(
-                tr('يُغيَّر من AppConstants.storeDisplayName في الكود'),
+                tr('يُغيَّر على الوصل من «محتوى الوصل»، وفي الموقع من «المتجر الإلكتروني».'),
               ),
               trailing: Text(
                 AppConstants.storeDisplayName,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
+            const Divider(),
+
+            // ─── الاسم الذي يظهر أمام كل فاتورة في السجل ───
+            Focus(
+              onFocusChange: (has) {
+                if (!has) _saveMyName();
+              },
+              child: TextField(
+                controller: _myNameCtrl,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _saveMyName(),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: tr('اسمي في السجل'),
+                  helperText:
+                      tr('يظهر بالبنفسجي أمام كل فاتورة بعتها، وأمام حركات الصندوق.'),
+                  helperMaxLines: 2,
+                  prefixIcon: Icon(Icons.badge_outlined, color: AppTheme.seller),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             const Divider(),
             Row(
               children: [
