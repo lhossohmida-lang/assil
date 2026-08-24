@@ -188,9 +188,16 @@ class _AccountTile extends ConsumerWidget {
               ListTile(
                 dense: true,
                 title: Text(tx.note.isEmpty ? tr('مصروف') : tx.note),
-                subtitle: Text(
-                  '${formatDateTime(tx.createdAt)} · ${tx.createdByName}',
-                  style: const TextStyle(fontSize: 11),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      formatDateTime(tx.createdAt),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    SellerBadge(name: tx.createdByName),
+                  ],
                 ),
                 trailing: Text(
                   money(tx.amount),
