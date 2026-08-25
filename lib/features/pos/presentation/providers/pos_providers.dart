@@ -31,6 +31,14 @@ final heldCartsProvider = StreamProvider<List<HeldCart>>((ref) {
   return repo.watchHeldCarts();
 });
 
+/// الحجز الذي نتجت عنه هذه الفاتورة، أو '' إن لم تكن فارسموناً.
+String reservationIdForSale(List<Reservation> all, String saleId) {
+  for (final r in all) {
+    if (r.saleId == saleId) return r.id;
+  }
+  return '';
+}
+
 final reservationsProvider = StreamProvider<List<Reservation>>((ref) {
   final repo = ref.watch(posRepositoryProvider);
   if (repo == null) return Stream.value(const []);

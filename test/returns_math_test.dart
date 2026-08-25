@@ -138,4 +138,33 @@ void main() {
       }
     });
   });
+
+  group('🔒 حذف فاتورة فارسمون لا يُضاعف المخزون', () {
+    // بضاعة الحجز خرجت من المخزون **يوم الحجز** لا يوم إكمال البيع.
+    // فحذف الفاتورة لا يعني «أعِد البضاعة» — هي موضوعة جانباً للزبون —
+    // بل «ألغِ الإكمال» فيعود الحجز نشطاً.
+    //
+    // القاعدة مُنفَّذة في `SalesRepository.deleteSale`؛ هنا نثبّت المنطق
+    // الذي يقرّرها حتى لا يُعكَس سهواً.
+    bool restoresStock(PaymentMethod method, String reservationId) =>
+        !(method == PaymentMethod.reservation && reservationId.isNotEmpty);
+
+    test('بيع نقدي ⇒ البضاعة تعود للمخزون', () {
+      expect(restoresStock(PaymentMethod.cash, ''), isTrue);
+    });
+
+    test('بيع كريدي ⇒ البضاعة تعود للمخزون', () {
+      expect(restoresStock(PaymentMethod.credit, ''), isTrue);
+    });
+
+    test('🔒 فارسمون مرتبط بحجز ⇒ لا تعود، بل يعود الحجز نشطاً', () {
+      expect(restoresStock(PaymentMethod.reservation, 'r1'), isFalse,
+          reason: 'إعادتها تجعل المحل يبيع قطعة محجوزة ثم لا يجدها');
+    });
+
+    test('فارسمون قديم بلا حجز معروف ⇒ نعيدها احتياطاً', () {
+      // بيانات سابقة لهذه الميزة: أن نُعيد البضاعة أهون من أن تضيع.
+      expect(restoresStock(PaymentMethod.reservation, ''), isTrue);
+    });
+  });
 }

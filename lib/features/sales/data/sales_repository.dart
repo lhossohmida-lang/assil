@@ -418,6 +418,7 @@ class SalesRepository {
     Sale sale, {
     Map<String, Product> productLookup = const {},
     String creditAccountId = '',
+    String reservationId = '',
   }) async {
     // (1) القراءات أولاً.
     final linked = await cashbox.where('saleId', isEqualTo: sale.id).get();
@@ -431,17 +432,42 @@ class SalesRepository {
     // (2) ثم الكتابة.
     final batch = _db.batch();
 
-    for (final item in sale.items) {
-      if (item.productId.isEmpty) continue;
-      batch.update(products.doc(item.productId), {
-        'quantity': FieldValue.increment(item.quantity),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      _mirrorAfterQuantityChange(
-        batch,
-        productLookup[item.productId],
-        item.quantity,
+    // ═══ الفارسمون حالة خاصّة ═══
+    //
+    // بضاعة الحجز خرجت من المخزون **يوم الحجز** لا يوم إكمال البيع
+    // (`createReservation` هو من أنقصها). فحذف الفاتورة هنا لا يعني «أعِد
+    // البضاعة» — هي ما تزال موضوعة جانباً للزبون — بل يعني «ألغِ الإكمال»
+    // فيعود الحجز نشطاً كما كان.
+    //
+    // لو أُعيدت الكمية هنا لظنّ المحل أن عنده قطعة إضافية وهي محجوزة
+    // فعلاً، فيبيعها لزبون آخر ثم لا يجدها.
+    final undoingReservation =
+        sale.paymentMethod == PaymentMethod.reservation &&
+            reservationId.isNotEmpty;
+
+    if (undoingReservation) {
+      batch.update(
+        _col(FirestorePaths.reservations).doc(reservationId),
+        {
+          'status': 'active',
+          'saleId': '',
+          'closedAt': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
       );
+    } else {
+      for (final item in sale.items) {
+        if (item.productId.isEmpty) continue;
+        batch.update(products.doc(item.productId), {
+          'quantity': FieldValue.increment(item.quantity),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        _mirrorAfterQuantityChange(
+          batch,
+          productLookup[item.productId],
+          item.quantity,
+        );
+      }
     }
 
     final seen = <String>{};

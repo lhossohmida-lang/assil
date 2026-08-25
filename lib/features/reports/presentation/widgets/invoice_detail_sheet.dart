@@ -239,6 +239,10 @@ class _InvoiceSheetState extends ConsumerState<_InvoiceSheet> {
             sale,
             productLookup: _lookup,
             creditAccountId: _creditAccountId(sale),
+            reservationId: reservationIdForSale(
+              ref.read(reservationsProvider).value ?? const [],
+              sale.id,
+            ),
           );
       if (mounted) {
         Navigator.of(context).pop();
