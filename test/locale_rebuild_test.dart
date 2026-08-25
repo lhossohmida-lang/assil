@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kmsan/core/i18n/app_strings.dart';
+import 'package:kmsan/core/constants/app_constants.dart';
+import 'package:kmsan/core/router/app_router.dart';
+import 'package:kmsan/features/auth/domain/models/app_user.dart';
 
 /// شاشة تُسجَّل في الراوتر نسخةً `const` — تماماً كشاشات التطبيق.
 ///
@@ -49,6 +52,55 @@ class _HostState extends State<_Host> {
 
 void main() {
   tearDown(() => AppLocaleState.code = 'ar');
+
+  group('🔒 جداول النصوص لا تتجمّد عند لغة الإقلاع', () {
+    // ⚠️ عطب نجا من الإصلاح الأول: `KeyedSubtree` جعل الشاشات تُعاد
+    // بناءها، لكن عناوين الأقسام كانت في خرائط `final` على مستوى الملف.
+    // و`final` في Dart يُقيَّم **مرّة واحدة عند أول استعمال ولا يُعاد**،
+    // فتجمّدت العناوين عند لغة أول تشغيل: تتبدّل الشاشات ويبقى عنوانها.
+
+    test('عناوين الأقسام تتبع اللغة الحالية', () {
+      AppLocaleState.code = 'ar';
+      final ar = protectedSections[AppRoutes.inventory]!.title();
+      expect(ar, 'المخزون');
+
+      AppLocaleState.code = 'fr';
+      final fr = protectedSections[AppRoutes.inventory]!.title();
+      expect(fr, 'Stock');
+
+      AppLocaleState.code = 'ar';
+      expect(protectedSections[AppRoutes.inventory]!.title(), 'المخزون',
+          reason: 'العودة إلى العربية يجب أن تعمل أيضاً');
+    });
+
+    test('أسماء الأقسام في واجهة الصلاحيات تتبع اللغة', () {
+      AppLocaleState.code = 'ar';
+      expect(grantableScreens[AppRoutes.inventory], 'المخزون');
+
+      AppLocaleState.code = 'fr';
+      expect(grantableScreens[AppRoutes.inventory], 'Stock');
+
+      AppLocaleState.code = 'ar';
+      expect(grantableScreens[AppRoutes.inventory], 'المخزون');
+    });
+
+    test('🔒 كل عناوين الأقسام تتبدّل فعلاً بين اللغتين', () {
+      // حارس شامل: لو تجمّد عنوان واحد لسقط الاختبار باسمه.
+      AppLocaleState.code = 'ar';
+      final arabic = {
+        for (final e in protectedSections.entries) e.key: e.value.title(),
+      };
+
+      AppLocaleState.code = 'fr';
+      for (final entry in protectedSections.entries) {
+        final french = entry.value.title();
+        // النصّ الوحيد الذي يجوز تطابقه هو ما لا ترجمة له (اسم علم).
+        if (french == arabic[entry.key]) {
+          fail('عنوان ${entry.key} لم يتبدّل: ${arabic[entry.key]}');
+        }
+      }
+    });
+  });
 
   group('تبديل اللغة يُعيد بناء الشاشات', () {
     testWidgets('🐞 إعادة إنتاج العطب: بلا مفتاح تبقى العناوين بالعربية',

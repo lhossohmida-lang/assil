@@ -18,9 +18,9 @@ class ColorOption {
       '#${(value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
   factory ColorOption.fromMap(Map<String, dynamic> m) => ColorOption(
-        name: (m['name'] ?? '') as String,
-        value: m['value'] == null ? 0xFF000000 : toInt(m['value']),
-      );
+    name: (m['name'] ?? '') as String,
+    value: m['value'] == null ? 0xFF000000 : toInt(m['value']),
+  );
 
   Map<String, dynamic> toMap() => {'name': name, 'value': value};
 
@@ -67,6 +67,15 @@ class StoreSettings {
   /// يمسح الرمز ولا يقرأ العنوان.
   final String facebookName;
   final String instagramName;
+
+  /// صورة كل صنف في واجهة المتجر: اسم الصنف ⇒ رابط Cloudinary.
+  ///
+  /// خريطة لا قائمة موازية: الأصناف تُضاف وتُحذف من قائمتها، ولو خُزّنت
+  /// الصور بالترتيب لانزاحت كلّها عند حذف صنف من الوسط.
+  final Map<String, String> categoryImages;
+
+  /// معرّفات المنتجات المختارة التي تظهر تحت الأصناف في المتجر.
+  final List<String> featuredProductIds;
 
   /// أسعار التوصيل حسب الولاية.
   ///
@@ -118,9 +127,35 @@ class StoreSettings {
     this.facebookName = '',
     this.instagramName = '',
     this.delivery = const DeliveryPricing(),
+    this.pinEnabled = true,
+    this.lockedSections,
+    this.categoryImages = const {},
+    this.featuredProductIds = const [],
   });
 
+  /// هل الرقم السرّي مفعَّل؟
+  ///
+  /// منفصل عن وجود الرقم عمداً: صاحب المحل قد يعطّله مؤقّتاً في يوم زحمة
+  /// ثم يعيده بلا أن يضطر لكتابته من جديد.
+  final bool pinEnabled;
+
+  /// الأقسام المقفلة فعلاً. `null` = **لم تُضبط بعد ⇒ كل شيء مقفل**.
+  ///
+  /// التمييز بين `null` والقائمة الفارغة مقصود: الفارغة تعني «اخترتُ ألّا
+  /// أقفل شيئاً»، و`null` تعني بيانات قديمة سابقة لهذه الميزة — ولا يجوز
+  /// أن تُفتح أقسام محل قائم من تلقاء نفسها بترقية التطبيق.
+  final List<String>? lockedSections;
+
   bool get hasPin => (pinHash ?? '').isNotEmpty;
+
+  /// هل يُطلَب الرقم السرّي لفتح هذا القسم؟
+  bool isSectionLocked(String section) {
+    if (!hasPin || !pinEnabled) return false;
+    final list = lockedSections;
+    if (list == null) return true;
+    return list.contains(section);
+  }
+
   bool get hasSocial => facebookUrl.isNotEmpty || instagramUrl.isNotEmpty;
 
   /// 🚫 المرآة العامة لبيانات المحل — يقرأها **أي زائر على الإنترنت**.
@@ -130,13 +165,22 @@ class StoreSettings {
   /// (تجزئة الرقم السرّي، رأس المال، نسبة الخصم…) فلن يتسرّب تلقائياً،
   /// لأنه ببساطة ليس مذكوراً هنا.
   Map<String, dynamic> toStorefrontMap() => {
-        'storeName': storeName,
-        'tagline': storeTagline,
-        'phone': storePhone,
-        'facebookUrl': facebookUrl,
-        'instagramUrl': instagramUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+    'storeName': storeName,
+    'tagline': storeTagline,
+    'phone': storePhone,
+    'facebookUrl': facebookUrl,
+    'instagramUrl': instagramUrl,
+
+    // واجهة المتجر: الأصناف بصورها ثم المنتجات المختارة.
+    // أسماء الأصناف وصورها ليست سرّاً — هي ما يراه الزائر أصلاً.
+    'categories': [
+      for (final name in categories)
+        {'name': name, 'image': categoryImages[name] ?? ''},
+    ],
+    'featured': featuredProductIds,
+
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
 
   factory StoreSettings.fromMap(Map<String, dynamic>? m) {
     if (m == null) return const StoreSettings();
@@ -160,6 +204,15 @@ class StoreSettings {
       storefrontUrl: (m['storefrontUrl'] ?? '') as String,
       facebookName: (m['facebookName'] ?? '') as String,
       instagramName: (m['instagramName'] ?? '') as String,
+      pinEnabled: (m['pinEnabled'] ?? true) as bool,
+      categoryImages: m['categoryImages'] == null
+          ? const {}
+          : Map<String, String>.from(m['categoryImages'] as Map),
+      featuredProductIds:
+          ((m['featuredProductIds'] ?? const []) as List).cast<String>(),
+      lockedSections: m['lockedSections'] == null
+          ? null
+          : ((m['lockedSections'] as List).cast<String>()),
       delivery: DeliveryPricing.fromMap(
         m['delivery'] == null
             ? null
@@ -169,24 +222,27 @@ class StoreSettings {
   }
 
   Map<String, dynamic> toMap() => {
-        if (pinHash != null) 'pinHash': pinHash,
-        'vipDiscountPercent': vipDiscountPercent,
-        if (lastDayClose != null)
-          'lastDayClose': Timestamp.fromDate(lastDayClose!),
-        'categories': categories,
-        'sizes': sizes,
-        'colors': colors.map((c) => c.toMap()).toList(),
-        'facebookUrl': facebookUrl,
-        'instagramUrl': instagramUrl,
-        'storeName': storeName,
-        'storeTagline': storeTagline,
-        'storePhone': storePhone,
-        'logoBase64': logoBase64,
-        'storefrontUrl': storefrontUrl,
-        'facebookName': facebookName,
-        'instagramName': instagramName,
-        'delivery': delivery.toMap(),
-      };
+    if (pinHash != null) 'pinHash': pinHash,
+    'vipDiscountPercent': vipDiscountPercent,
+    if (lastDayClose != null) 'lastDayClose': Timestamp.fromDate(lastDayClose!),
+    'categories': categories,
+    'sizes': sizes,
+    'colors': colors.map((c) => c.toMap()).toList(),
+    'facebookUrl': facebookUrl,
+    'instagramUrl': instagramUrl,
+    'storeName': storeName,
+    'storeTagline': storeTagline,
+    'storePhone': storePhone,
+    'logoBase64': logoBase64,
+    'storefrontUrl': storefrontUrl,
+    'facebookName': facebookName,
+    'instagramName': instagramName,
+    'delivery': delivery.toMap(),
+    'pinEnabled': pinEnabled,
+    'categoryImages': categoryImages,
+    'featuredProductIds': featuredProductIds,
+    if (lockedSections != null) 'lockedSections': lockedSections,
+  };
 
   StoreSettings copyWith({
     String? pinHash,
@@ -205,23 +261,30 @@ class StoreSettings {
     String? facebookName,
     String? instagramName,
     DeliveryPricing? delivery,
-  }) =>
-      StoreSettings(
-        pinHash: pinHash ?? this.pinHash,
-        vipDiscountPercent: vipDiscountPercent ?? this.vipDiscountPercent,
-        lastDayClose: lastDayClose ?? this.lastDayClose,
-        categories: categories ?? this.categories,
-        sizes: sizes ?? this.sizes,
-        colors: colors ?? this.colors,
-        facebookUrl: facebookUrl ?? this.facebookUrl,
-        instagramUrl: instagramUrl ?? this.instagramUrl,
-        storeName: storeName ?? this.storeName,
-        storeTagline: storeTagline ?? this.storeTagline,
-        storePhone: storePhone ?? this.storePhone,
-        logoBase64: logoBase64 ?? this.logoBase64,
-        storefrontUrl: storefrontUrl ?? this.storefrontUrl,
-        facebookName: facebookName ?? this.facebookName,
-        instagramName: instagramName ?? this.instagramName,
-        delivery: delivery ?? this.delivery,
-      );
+    bool? pinEnabled,
+    List<String>? lockedSections,
+    Map<String, String>? categoryImages,
+    List<String>? featuredProductIds,
+  }) => StoreSettings(
+    pinHash: pinHash ?? this.pinHash,
+    vipDiscountPercent: vipDiscountPercent ?? this.vipDiscountPercent,
+    lastDayClose: lastDayClose ?? this.lastDayClose,
+    categories: categories ?? this.categories,
+    sizes: sizes ?? this.sizes,
+    colors: colors ?? this.colors,
+    facebookUrl: facebookUrl ?? this.facebookUrl,
+    instagramUrl: instagramUrl ?? this.instagramUrl,
+    storeName: storeName ?? this.storeName,
+    storeTagline: storeTagline ?? this.storeTagline,
+    storePhone: storePhone ?? this.storePhone,
+    logoBase64: logoBase64 ?? this.logoBase64,
+    storefrontUrl: storefrontUrl ?? this.storefrontUrl,
+    facebookName: facebookName ?? this.facebookName,
+    instagramName: instagramName ?? this.instagramName,
+    delivery: delivery ?? this.delivery,
+    pinEnabled: pinEnabled ?? this.pinEnabled,
+    lockedSections: lockedSections ?? this.lockedSections,
+    categoryImages: categoryImages ?? this.categoryImages,
+    featuredProductIds: featuredProductIds ?? this.featuredProductIds,
+  );
 }

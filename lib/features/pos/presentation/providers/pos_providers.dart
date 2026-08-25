@@ -43,6 +43,17 @@ final activeReservationsProvider = Provider<List<Reservation>>((ref) {
   return all.where((r) => r.status == ReservationStatus.active).toList();
 });
 
+/// حساب الكريدي المرتبط بفاتورة، أو '' إن لم يكن لها حساب.
+///
+/// البحث عكسي عبر `saleIds` لأن الفاتورة نفسها لا تحمل معرّف الحساب —
+/// وهو ما جعل حذفها يترك الدَّين قائماً بلا فاتورة تسنده.
+String creditAccountIdForSale(List<CreditAccount> accounts, String saleId) {
+  for (final account in accounts) {
+    if (account.saleIds.contains(saleId)) return account.id;
+  }
+  return '';
+}
+
 final creditAccountsProvider = StreamProvider<List<CreditAccount>>((ref) {
   final repo = ref.watch(posRepositoryProvider);
   if (repo == null) return Stream.value(const []);

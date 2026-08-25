@@ -1115,4 +1115,40 @@ const Map<String, String> frenchStrings = <String, String>{
   'خطأ غير معروف': 'Erreur inconnue',
   'القواعد لا تسمح بهذه العملية لهذا الحساب. تأكّد أنك داخل بحساب صاحب المحل، وأن آخر نسخة من firestore.rules منشورة.':
       'Les règles n’autorisent pas cette opération pour ce compte. Vérifiez que vous êtes connecté avec le compte du propriétaire et que la dernière version de firestore.rules est publiée.',
+
+  // ─── الرقم السرّي والأقسام المقفلة ───
+  'تفعيل الرقم السرّي': 'Activer le code secret',
+  'فُعّل الرقم السرّي': 'Code secret activé',
+  'عُطّل الرقم السرّي': 'Code secret désactivé',
+  'التعطيل يفتح كل الأقسام ويُبقي الرقم محفوظاً لإعادته لاحقاً.':
+      'La désactivation ouvre toutes les sections et conserve le code pour le réactiver plus tard.',
+  'الأقسام المقفلة بالرقم': 'Sections verrouillées par le code',
+  'نقطة البيع مفتوحة دائماً — البائع يبيع دون أن يعرف الرقم.':
+      'Le point de vente reste toujours ouvert — le vendeur vend sans connaître le code.',
+  'حذف الرقم السرّي': 'Supprimer le code secret',
+  'حُذف الرقم السرّي': 'Code secret supprimé',
+  'تُفتح كل الأقسام بلا رقم':
+      'Toutes les sections s’ouvrent sans code',
+  'ستُفتح كل الأقسام لأي شخص يمسك الجهاز — بما فيها التقارير ورأس المال والإعدادات.':
+      'Toutes les sections seront accessibles à quiconque prend l’appareil — y compris les rapports, le capital et les réglages.',
+
+  // ─── واجهة المتجر الإلكتروني ───
+  'واجهة المتجر الإلكتروني': 'Page d’accueil de la boutique',
+  'أول ما يراه الزائر: بطاقات الأصناف بصورها، وتحتها المنتجات المختارة.':
+      'Ce que le visiteur voit en premier : les catégories avec leurs images, puis les produits sélectionnés.',
+  'صور الأصناف': 'Images des catégories',
+  'أضف أنواع المنتجات أوّلاً من «أنواع المنتجات» أعلاه.':
+      'Ajoutez d’abord des types de produits via « Types de produits » ci-dessus.',
+  'بلا صورة': 'Sans image',
+  'صورة مضبوطة': 'Image définie',
+  'حُفظت صورة الصنف': 'Image de la catégorie enregistrée',
+  'تعذّر رفع الصورة: {0}': 'Échec de l’envoi de l’image : {0}',
+  'المنتجات المختارة': 'Produits sélectionnés',
+  'مختار: {0}': 'Sélectionnés : {0}',
+  'لا منتجات منشورة في المتجر بعد — انشر منتجاً من بطاقته في المخزون.':
+      'Aucun produit publié dans la boutique — publiez-en un depuis sa fiche dans le stock.',
+
+  // ─── الإرجاع ───
+  'يعود للمخزون وتنقص الفاتورة بقيمته — كأنه لم يُبَع. ما دفعه الزبون زائداً عن الفاتورة الجديدة يُردّ نقداً، والباقي يُخصم من ذمّته.':
+      'Il retourne au stock et la facture diminue d’autant — comme s’il n’avait pas été vendu. Ce que le client a payé en trop est rendu en espèces, le reste est déduit de sa dette.',
 };

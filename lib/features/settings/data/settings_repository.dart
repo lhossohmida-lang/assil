@@ -34,6 +34,18 @@ class SettingsRepository {
   Future<void> setPin(String pin) =>
       _ref.set({'pinHash': hashPin(pin)}, SetOptions(merge: true));
 
+  /// يفعّل الرقم السرّي أو يعطّله دون حذفه.
+  Future<void> setPinEnabled(bool enabled) =>
+      _ref.set({'pinEnabled': enabled}, SetOptions(merge: true));
+
+  /// يحدّد الأقسام المقفلة. قائمة فارغة = لا شيء مقفل (اختيار صريح).
+  Future<void> setLockedSections(List<String> sections) =>
+      _ref.set({'lockedSections': sections}, SetOptions(merge: true));
+
+  /// يحذف الرقم السرّي كلّياً.
+  Future<void> clearPin() =>
+      _ref.set({'pinHash': ''}, SetOptions(merge: true));
+
   Future<void> setVipDiscount(double percent) =>
       _ref.set({'vipDiscountPercent': percent}, SetOptions(merge: true));
 
@@ -43,8 +55,14 @@ class SettingsRepository {
 
   // ─────────── القوائم التي يديرها صاحب المحل من الإعدادات ───────────
 
-  Future<void> setCategories(List<String> categories) =>
-      _ref.set({'categories': categories}, SetOptions(merge: true));
+  /// يحفظ الأصناف وينشرها للموقع (واجهته مبنيّة عليها).
+  Future<void> setCategories(List<String> categories) async {
+    final next = (await read()).copyWith(categories: categories);
+    final batch = _db.batch();
+    batch.set(_ref, {'categories': categories}, SetOptions(merge: true));
+    batch.set(_publicRef, next.toStorefrontMap());
+    await batch.commit();
+  }
 
   Future<void> setSizes(List<String> sizes) =>
       _ref.set({'sizes': sizes}, SetOptions(merge: true));
@@ -53,6 +71,29 @@ class SettingsRepository {
         {'colors': colors.map((c) => c.toMap()).toList()},
         SetOptions(merge: true),
       );
+
+  /// يحفظ صور الأصناف **وينشرها للموقع في الدفعة نفسها**.
+  ///
+  /// النشر المتزامن ليس رفاهية: الموقع يقرأ المرآة وحدها، ولو حُدّث
+  /// المستند الخاص ونُسيت المرآة لبقيت واجهة المتجر على صور قديمة بلا
+  /// أي رسالة خطأ.
+  Future<void> setCategoryImages(Map<String, String> images) async {
+    final next = (await read()).copyWith(categoryImages: images);
+    final batch = _db.batch();
+    batch.set(_ref, {'categoryImages': images}, SetOptions(merge: true));
+    batch.set(_publicRef, next.toStorefrontMap());
+    await batch.commit();
+  }
+
+  /// يحفظ المنتجات المختارة وينشرها للموقع.
+  Future<void> setFeaturedProducts(List<String> productIds) async {
+    final next = (await read()).copyWith(featuredProductIds: productIds);
+    final batch = _db.batch();
+    batch.set(_ref, {'featuredProductIds': productIds},
+        SetOptions(merge: true));
+    batch.set(_publicRef, next.toStorefrontMap());
+    await batch.commit();
+  }
 
   /// يحفظ جدول أسعار التوصيل.
   Future<void> setDelivery(DeliveryPricing pricing) =>

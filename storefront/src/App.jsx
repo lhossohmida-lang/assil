@@ -5,6 +5,7 @@ import ProductModal from './components/ProductModal.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import CheckoutForm from './components/CheckoutForm.jsx';
 import SocialLinks, { SocialQrCodes } from './components/SocialLinks.jsx';
+import CategoryGrid, { FeaturedRow } from './components/CategoryGrid.jsx';
 
 // قيم افتراضية تظهر قبل أن يحفظ صاحب المحل هويّته من الإعدادات،
 // أو لو تعذّرت قراءة المرآة العامة. الموقع لا يظهر فارغاً أبداً.
@@ -55,10 +56,42 @@ export default function App() {
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
   }, [cart]);
 
+  // أصناف الواجهة تأتي من إعدادات التطبيق (باسمها وصورتها وترتيبها).
+  // نُبقي المستنتجة من المنتجات احتياطاً: محل لم يضبط أصنافه بعد يجب أن
+  // يعمل متجره لا أن يظهر فارغاً.
+  const settingsCategories = useMemo(
+    () => (Array.isArray(info.categories) ? info.categories : []),
+    [info],
+  );
+
   const categories = useMemo(() => {
+    if (settingsCategories.length) {
+      return settingsCategories.map((c) => c.name).filter(Boolean);
+    }
     const set = new Set(products.map((p) => p.category).filter(Boolean));
     return [...set].sort();
-  }, [products]);
+  }, [products, settingsCategories]);
+
+  // بطاقات الأصناف: لا نعرض صنفاً لا منتج منشوراً فيه — بطاقة تُفتح على
+  // صفحة فارغة أسوأ من غيابها.
+  const categoryCards = useMemo(() => {
+    const stocked = new Set(products.map((p) => p.category));
+    const source = settingsCategories.length
+      ? settingsCategories
+      : categories.map((name) => ({ name, image: '' }));
+    return source.filter((c) => c.name && stocked.has(c.name));
+  }, [settingsCategories, categories, products]);
+
+  const featured = useMemo(() => {
+    const ids = Array.isArray(info.featured) ? info.featured : [];
+    if (!ids.length) return [];
+    const byId = new Map(products.map((p) => [p.id, p]));
+    // نحترم ترتيب اختيار صاحب المحل، ونتجاهل معرّفاً لمنتج حُذف أو أُخفي.
+    return ids.map((id) => byId.get(id)).filter(Boolean);
+  }, [info, products]);
+
+  // الواجهة الأولى: لا بحث ولا صنف مختار ولا طلب أُرسل للتوّ.
+  const showHome = !query && !category && !placed;
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -222,7 +255,7 @@ export default function App() {
       <main id="top" className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         {/* الواجهة التعريفية — تختفي فور أن يبحث الزائر أو يفرز، لأنه
             حينها يعرف ما يريد ولا يحتاج تعريفاً بالمحل. */}
-        {!query && !category && !placed && (
+        {showHome && (
           <section
             className="mb-6 rounded-2xl overflow-hidden border border-slate-200
                        bg-gradient-to-l from-brand/10 via-white to-brand-accent/10"
@@ -296,6 +329,19 @@ export default function App() {
           <p className="text-center py-16 text-slate-500">
             {query || category ? 'لا نتائج لبحثك' : 'لا منتجات معروضة حالياً'}
           </p>
+        )}
+
+        {showHome && (
+          <>
+            <CategoryGrid categories={categoryCards} onPick={setCategory} />
+            <FeaturedRow products={featured} onOpen={setSelected} />
+          </>
+        )}
+
+        {/* في الواجهة الأولى نعرض «كل المنتجات» تحت المختارات بعنوان
+            صريح، فلا يظنّ الزائر أن المعروض هو كل ما في المحل. */}
+        {showHome && visible.length > 0 && (
+          <h2 className="text-lg font-bold mb-3">كل المنتجات</h2>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

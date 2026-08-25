@@ -136,22 +136,18 @@ class SalesRepository {
       final ref = creditAccountId.isEmpty
           ? creditAccounts.doc()
           : creditAccounts.doc(creditAccountId);
-      batch.set(
-        ref,
-        {
-          'customerName': sale.customerName,
-          'phone': creditPhone,
-          'totalDebt': FieldValue.increment(sale.remaining),
-          'saleIds': FieldValue.arrayUnion([sale.id]),
-          'updatedAt': FieldValue.serverTimestamp(),
-          if (creditAccountId.isEmpty) ...{
-            'totalPaid': 0,
-            'payments': <Map<String, dynamic>>[],
-            'createdAt': FieldValue.serverTimestamp(),
-          },
+      batch.set(ref, {
+        'customerName': sale.customerName,
+        'phone': creditPhone,
+        'totalDebt': FieldValue.increment(sale.remaining),
+        'saleIds': FieldValue.arrayUnion([sale.id]),
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (creditAccountId.isEmpty) ...{
+          'totalPaid': 0,
+          'payments': <Map<String, dynamic>>[],
+          'createdAt': FieldValue.serverTimestamp(),
         },
-        SetOptions(merge: true),
-      );
+      }, SetOptions(merge: true));
     }
 
     // بطاقة الزبونة تُنشأ تلقائياً عند أول بيع باسمها.
@@ -159,18 +155,14 @@ class SalesRepository {
       final ref = sale.customerId.isEmpty
           ? customers.doc()
           : customers.doc(sale.customerId);
-      batch.set(
-        ref,
-        {
-          'name': sale.customerName.trim(),
-          'isVip': sale.isVip,
-          'totalPurchases': FieldValue.increment(sale.total),
-          'purchaseCount': FieldValue.increment(1),
-          'lastPurchaseAt': FieldValue.serverTimestamp(),
-          if (sale.customerId.isEmpty) 'createdAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(ref, {
+        'name': sale.customerName.trim(),
+        'isVip': sale.isVip,
+        'totalPurchases': FieldValue.increment(sale.total),
+        'purchaseCount': FieldValue.increment(1),
+        'lastPurchaseAt': FieldValue.serverTimestamp(),
+        if (sale.customerId.isEmpty) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -183,16 +175,20 @@ class SalesRepository {
   Stream<List<Sale>> watchSales({DateTime? from, DateTime? to}) {
     Query<Map<String, dynamic>> q = sales;
     if (from != null) {
-      q = q.where('createdAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(from));
+      q = q.where(
+        'createdAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(from),
+      );
     }
     if (to != null) {
       q = q.where('createdAt', isLessThan: Timestamp.fromDate(to));
     }
     return q.snapshots().map((s) {
       final list = s.docs.map(Sale.fromDoc).toList();
-      list.sort((a, b) => (b.createdAt ?? DateTime(0))
-          .compareTo(a.createdAt ?? DateTime(0)));
+      list.sort(
+        (a, b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+      );
       return list;
     });
   }
@@ -200,19 +196,22 @@ class SalesRepository {
   Future<List<Sale>> readAllSales() async {
     final snap = await sales.get();
     final list = snap.docs.map(Sale.fromDoc).toList();
-    list.sort((a, b) =>
-        (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+    list.sort(
+      (a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+    );
     return list;
   }
 
   /// فواتير عامل بعينه — بلا `orderBy` مع الـ `where` (فهرس مركّب).
-  Stream<List<Sale>> watchSalesByUser(String uid) => sales
-      .where('createdBy', isEqualTo: uid)
-      .snapshots()
-      .map((s) {
+  Stream<List<Sale>> watchSalesByUser(String uid) =>
+      sales.where('createdBy', isEqualTo: uid).snapshots().map((s) {
         final list = s.docs.map(Sale.fromDoc).toList();
-        list.sort((a, b) => (b.createdAt ?? DateTime(0))
-            .compareTo(a.createdAt ?? DateTime(0)));
+        list.sort(
+          (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+            a.createdAt ?? DateTime(0),
+          ),
+        );
         return list;
       });
 
@@ -228,11 +227,11 @@ class SalesRepository {
     required int quantity,
     required Actor actor,
     Product? product,
+    String creditAccountId = '',
   }) async {
     if (itemIndex < 0 || itemIndex >= sale.items.length) return;
     final item = sale.items[itemIndex];
     final qty = quantity.clamp(1, item.quantity);
-    final refundAmount = item.unitPrice * qty;
 
     final batch = _db.batch();
 
@@ -251,36 +250,75 @@ class SalesRepository {
       remainingItems[itemIndex] = item.copyWith(quantity: item.quantity - qty);
     }
 
+    final newSubtotal = remainingItems.fold<double>(
+      0,
+      (acc, i) => acc + i.lineTotal,
+    );
+    final newTotal = (newSubtotal - sale.discount - sale.vipDiscount)
+        .clamp(0, double.infinity)
+        .toDouble();
+
+    // ═══ كيف يُردّ المال ═══
+    //
+    // الإرجاع **إلغاء لسطر البيع** لا معاملة جديدة. لذلك:
+    //  • ما دفعه الزبون يبقى في يدنا ما دام لا يتجاوز الفاتورة الجديدة،
+    //    ويُردّ نقداً ما زاد عنها فقط.
+    //  • والباقي في ذمّته يُنقص بالفرق — فلا يُطالَب بثمن سلعة أعادها.
+    //
+    // مثال: كريدي بـ3000 دفع 1000، أرجع سلعة بـ1500 ⇒ الفاتورة 1500،
+    // المدفوع يبقى 1000، والدَّين ينزل من 2000 إلى 500. لا نقد يخرج.
+    final newPaid = sale.paidAmount <= newTotal ? sale.paidAmount : newTotal;
+    final cashRefund = sale.paidAmount - newPaid;
+    final debtBefore = sale.remaining;
+    final debtAfter = (newTotal - newPaid).clamp(0, double.infinity).toDouble();
+    final debtDrop = debtBefore - debtAfter;
+
     if (remainingItems.isEmpty) {
-      // لم يبقَ شيء في الفاتورة ⇒ تُحذف مع حركتها في الصندوق.
+      // لم يبقَ شيء في الفاتورة ⇒ تُحذف.
       batch.delete(sales.doc(sale.id));
     } else {
-      final newSubtotal =
-          remainingItems.fold<double>(0, (acc, i) => acc + i.lineTotal);
-      final newTotal = (newSubtotal - sale.discount - sale.vipDiscount)
-          .clamp(0, double.infinity)
-          .toDouble();
       batch.update(sales.doc(sale.id), {
         'items': remainingItems.map((i) => i.toMap()).toList(),
         'subtotal': newSubtotal,
         'total': newTotal,
+        'paidAmount': newPaid,
         'cost': remainingItems.fold<double>(0, (acc, i) => acc + i.lineCost),
       });
     }
 
-    batch.set(cashbox.doc(), {
-      'type': CashboxType.expense.code,
-      'amount': refundAmount,
-      'note': 'إرجاع ${item.name} × $qty من ${sale.invoiceNumber}',
-      'saleId': sale.id,
-      'accountId': '',
-      'accountName': '',
-      'recipientId': '',
-      'recipientName': '',
-      'createdBy': actor.uid,
-      'createdByName': actor.name,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // نقد يخرج فعلاً ⇒ حركة صندوق **بنوع الإرجاع لا المصروف**.
+    if (cashRefund > 0.009) {
+      batch.set(cashbox.doc(), {
+        'type': CashboxType.saleReturn.code,
+        'amount': cashRefund,
+        'note': 'إرجاع ${item.name} × $qty من ${sale.invoiceNumber}',
+        'saleId': sale.id,
+        'accountId': '',
+        'accountName': '',
+        'recipientId': '',
+        'recipientName': '',
+        'createdBy': actor.uid,
+        'createdByName': actor.name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // كريدي: الدَّين ينزل بمقدار ما سقط من الفاتورة.
+    if (sale.paymentMethod == PaymentMethod.credit &&
+        debtDrop > 0.009 &&
+        creditAccountId.isNotEmpty) {
+      batch.set(creditAccounts.doc(creditAccountId), {
+        'totalDebt': FieldValue.increment(-debtDrop),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    // بطاقة الزبونة: مشترياتها تنقص بقيمة ما أعادته.
+    if (sale.customerId.isNotEmpty) {
+      batch.set(customers.doc(sale.customerId), {
+        'totalPurchases': FieldValue.increment(-(sale.total - newTotal)),
+      }, SetOptions(merge: true));
+    }
 
     await batch.commit();
   }
@@ -352,9 +390,11 @@ class SalesRepository {
     // فرق السعر: البديل أغلى ⇒ دخل، أرخص ⇒ مصروف. صفر ⇒ لا حركة.
     if (difference.abs() > 0.009) {
       batch.set(cashbox.doc(), {
-        'type': (difference > 0 ? CashboxType.income : CashboxType.expense).code,
+        'type':
+            (difference > 0 ? CashboxType.income : CashboxType.expense).code,
         'amount': difference.abs(),
-        'note': 'استبدال ${item.name} بـ ${replacement.name} '
+        'note':
+            'استبدال ${item.name} بـ ${replacement.name} '
             'في ${sale.invoiceNumber}',
         'saleId': sale.id,
         'accountId': '',
@@ -377,6 +417,7 @@ class SalesRepository {
   Future<void> deleteSale(
     Sale sale, {
     Map<String, Product> productLookup = const {},
+    String creditAccountId = '',
   }) async {
     // (1) القراءات أولاً.
     final linked = await cashbox.where('saleId', isEqualTo: sale.id).get();
@@ -406,6 +447,29 @@ class SalesRepository {
     final seen = <String>{};
     for (final doc in [...linked.docs, ...legacy.docs]) {
       if (seen.add(doc.id)) batch.delete(doc.reference);
+    }
+
+    // ═══ ما كان الحذف يتركه خلفه ═══
+    //
+    // كان يحذف الفاتورة وحركاتها ويعيد البضاعة، **ويترك ذمّة الزبونة
+    // وبطاقتها كما هما**. فتُحذف فاتورة كريدي ويبقى الدَّين مطالَباً به
+    // إلى الأبد بلا فاتورة تسنده — والزبونة تُطالَب بثمن بضاعة عادت إلى
+    // الرفّ. الحذف يجب أن يمحو أثر البيعة كلّه لا بعضه.
+    if (sale.paymentMethod == PaymentMethod.credit &&
+        sale.remaining > 0.009 &&
+        creditAccountId.isNotEmpty) {
+      batch.set(creditAccounts.doc(creditAccountId), {
+        'totalDebt': FieldValue.increment(-sale.remaining),
+        'saleIds': FieldValue.arrayRemove([sale.id]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    if (sale.customerId.isNotEmpty) {
+      batch.set(customers.doc(sale.customerId), {
+        'totalPurchases': FieldValue.increment(-sale.total),
+        'purchaseCount': FieldValue.increment(-1),
+      }, SetOptions(merge: true));
     }
 
     batch.delete(sales.doc(sale.id));
@@ -456,10 +520,10 @@ class SalesRepository {
   // ───────────────────────── الزبائن ─────────────────────────
 
   Stream<List<Customer>> watchCustomers() => customers.snapshots().map((s) {
-        final list = s.docs.map(Customer.fromDoc).toList();
-        list.sort((a, b) => a.name.compareTo(b.name));
-        return list;
-      });
+    final list = s.docs.map(Customer.fromDoc).toList();
+    list.sort((a, b) => a.name.compareTo(b.name));
+    return list;
+  });
 
   Future<void> saveCustomer(Customer c) => c.id.isEmpty
       ? customers.add(c.toMap())

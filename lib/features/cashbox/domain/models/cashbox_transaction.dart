@@ -20,6 +20,16 @@ enum CashboxType {
   /// اشترى بضاعة. لكنها **تُنقص رصيد الصندوق** لأن المال خرج فعلاً.
   purchase,
 
+  /// **إرجاع بضاعة** — المال يعود إلى الزبون.
+  ///
+  /// ⚠️ ليس مصروفاً. الإرجاع **إلغاءٌ لبيعة** لا كلفة على المحل: الفاتورة
+  /// نفسها تنقص بقيمة السلعة المُرجَعة فتنقص الفائدة الخام تلقائياً. لو
+  /// عُدّ مصروفاً أيضاً لخُصم مرّتين، فتُقرأ «الفائدة بعد المصاريف» أقلّ
+  /// مما هي بمقدار قيمة الإرجاع كاملةً — وهو ما كان يحدث فعلاً.
+  ///
+  /// لكنه **يُنقص رصيد الصندوق وصافي النقد** لأن المال خرج من الدرج حقاً.
+  saleReturn,
+
   /// **سحب أرباح** — يُسجَّل عند «إغلاق الصندوق».
   ///
   /// نوع مستقلّ عمداً: صاحب المحل يأخذ ربحه إلى جيبه، وهذا **ليس مصروفاً**
@@ -34,6 +44,7 @@ extension CashboxTypeLabel on CashboxType {
         CashboxType.deposit => 'إيداع',
         CashboxType.expense => 'سحب / مصروف',
         CashboxType.purchase => 'شراء بضاعة',
+        CashboxType.saleReturn => 'إرجاع بضاعة',
         CashboxType.profitWithdrawal => 'سحب أرباح',
       };
 
@@ -42,6 +53,7 @@ extension CashboxTypeLabel on CashboxType {
         CashboxType.deposit => 'deposit',
         CashboxType.expense => 'expense',
         CashboxType.purchase => 'purchase',
+        CashboxType.saleReturn => 'saleReturn',
         CashboxType.profitWithdrawal => 'profitWithdrawal',
       };
 

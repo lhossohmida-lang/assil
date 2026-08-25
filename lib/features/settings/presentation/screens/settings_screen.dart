@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/formatters.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
@@ -17,9 +18,11 @@ import '../../../printing/services/order_label_service.dart';
 import '../../../printing/services/print_service.dart';
 import '../../../printing/services/receipt_service.dart';
 import '../../../printing/services/ticket_service.dart';
+import '../../domain/models/store_settings.dart';
 import '../providers/settings_providers.dart';
 import '../widgets/delivery_pricing_section.dart';
 import '../widgets/print_preview.dart';
+import '../widgets/storefront_home_section.dart';
 import '../widgets/printer_diagnostics_card.dart';
 import '../widgets/receipt_content_editor.dart';
 import '../widgets/settings_sections.dart';
@@ -45,6 +48,8 @@ class SettingsScreen extends ConsumerWidget {
           CatalogListsSection(),
           SizedBox(height: 8),
           SocialSection(),
+          SizedBox(height: 10),
+          StorefrontHomeSection(),
           SizedBox(height: 12),
           DeliveryPricingSection(),
           SizedBox(height: 8),
@@ -85,8 +90,40 @@ class _SecuritySection extends ConsumerWidget {
               child: Text(hasPin ? tr('تغيير') : tr('ضبط')),
             ),
           ),
-          if (hasPin)
+          if (hasPin) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              secondary: Icon(
+                settings!.pinEnabled ? Icons.shield : Icons.shield_outlined,
+                color: settings.pinEnabled
+                    ? AppTheme.success
+                    : AppTheme.textSecondary,
+              ),
+              value: settings.pinEnabled,
+              onChanged: (v) async {
+                await ref.read(settingsRepositoryProvider)?.setPinEnabled(v);
+                if (context.mounted) {
+                  showOk(
+                    context,
+                    v ? tr('فُعّل الرقم السرّي') : tr('عُطّل الرقم السرّي'),
+                  );
+                }
+              },
+              title: Text(tr('تفعيل الرقم السرّي')),
+              // التعطيل يُبقي الرقم محفوظاً: يوم زحمة يُعطَّل ثم يُعاد
+              // بضغطة، بلا كتابته من جديد ولا خوف من نسيانه.
+              subtitle: Text(
+                tr('التعطيل يفتح كل الأقسام ويُبقي الرقم محفوظاً لإعادته لاحقاً.'),
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+            if (settings.pinEnabled) ...[
+              const Divider(height: 20),
+              _LockedSectionsPicker(settings: settings),
+            ],
+            const Divider(height: 20),
             ListTile(
+              contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.logout),
               title: Text(tr('إقفال كل الأقسام الآن')),
               subtitle: Text(tr('يُطلب الرقم السرّي من جديد لكل قسم')),
@@ -95,6 +132,25 @@ class _SecuritySection extends ConsumerWidget {
                 showOk(context, tr('أُقفلت كل الأقسام'));
               },
             ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.lock_open, color: AppTheme.danger),
+              title: Text(tr('حذف الرقم السرّي')),
+              subtitle: Text(tr('تُفتح كل الأقسام بلا رقم')),
+              onTap: () async {
+                final ok = await confirmDialog(
+                  context,
+                  title: tr('حذف الرقم السرّي'),
+                  message: tr('ستُفتح كل الأقسام لأي شخص يمسك الجهاز — بما فيها التقارير ورأس المال والإعدادات.'),
+                  confirmLabel: tr('حذف'),
+                  destructive: true,
+                );
+                if (!ok) return;
+                await ref.read(settingsRepositoryProvider)?.clearPin();
+                if (context.mounted) showOk(context, tr('حُذف الرقم السرّي'));
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -804,6 +860,63 @@ class _StepperField extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// اختيار الأقسام التي يقفلها الرقم السرّي.
+///
+/// قبل هذا كان القفل «كل شيء إلا نقطة البيع» بلا استثناء، فصاحب المحل
+/// الذي يريد أن يرى عامله المخزون وحده كان يضطر لإعطائه الرقم — فينفتح
+/// له كل شيء بما فيه التقارير ورأس المال.
+class _LockedSectionsPicker extends ConsumerWidget {
+  const _LockedSectionsPicker({required this.settings});
+
+  final StoreSettings settings;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // أقسام فريدة: عدّة مسارات تتشارك المفتاح نفسه (الموردون والمشتريات).
+    final sections = <String, String>{};
+    for (final entry in protectedSections.entries) {
+      sections.putIfAbsent(entry.value.section, () => entry.value.title());
+    }
+
+    Future<void> toggle(String section, bool locked) async {
+      final current = <String>{
+        ...(settings.lockedSections ?? sections.keys),
+      };
+      if (locked) {
+        current.add(section);
+      } else {
+        current.remove(section);
+      }
+      await ref
+          .read(settingsRepositoryProvider)
+          ?.setLockedSections(current.toList());
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          tr('الأقسام المقفلة بالرقم'),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        Text(
+          tr('نقطة البيع مفتوحة دائماً — البائع يبيع دون أن يعرف الرقم.'),
+          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        for (final entry in sections.entries)
+          CheckboxListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: settings.isSectionLocked(entry.key),
+            title: Text(entry.value),
+            onChanged: (v) => toggle(entry.key, v ?? false),
+          ),
+      ],
     );
   }
 }

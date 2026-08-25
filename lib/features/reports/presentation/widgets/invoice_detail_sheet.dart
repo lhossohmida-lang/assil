@@ -153,6 +153,13 @@ class _InvoiceSheetState extends ConsumerState<_InvoiceSheet> {
     );
   }
 
+  /// حساب الكريدي المرتبط بالفاتورة — يُمرَّر للإرجاع والحذف حتى يعود
+  /// الدَّين مع البضاعة، فلا تُطالَب الزبونة بثمن سلعة عادت إلى الرفّ.
+  String _creditAccountId(Sale sale) => creditAccountIdForSale(
+        ref.read(creditAccountsProvider).value ?? const [],
+        sale.id,
+      );
+
   // ───────────────────────── العمليات ─────────────────────────
 
   Future<void> _returnItem(Sale sale, int index) async {
@@ -160,7 +167,7 @@ class _InvoiceSheetState extends ConsumerState<_InvoiceSheet> {
     final qty = await _askQuantity(
       title: trf('إرجاع «{0}»', [item.name]),
       max: item.quantity,
-      hint: tr('يعود للمخزون ويُسجَّل مصروفاً بقيمة المبلغ المُعاد'),
+      hint: tr('يعود للمخزون وتنقص الفاتورة بقيمته — كأنه لم يُبَع. ما دفعه الزبون زائداً عن الفاتورة الجديدة يُردّ نقداً، والباقي يُخصم من ذمّته.'),
     );
     if (qty == null || !mounted) return;
 
@@ -172,6 +179,7 @@ class _InvoiceSheetState extends ConsumerState<_InvoiceSheet> {
             quantity: qty,
             actor: ref.read(actorProvider),
             product: _lookup[item.productId],
+            creditAccountId: _creditAccountId(sale),
           );
       if (mounted) {
         showOk(context, trf('أُرجع {0} × {1}', [item.name, qty]));
@@ -227,7 +235,11 @@ class _InvoiceSheetState extends ConsumerState<_InvoiceSheet> {
     try {
       await ref
           .read(salesRepositoryProvider)!
-          .deleteSale(sale, productLookup: _lookup);
+          .deleteSale(
+            sale,
+            productLookup: _lookup,
+            creditAccountId: _creditAccountId(sale),
+          );
       if (mounted) {
         Navigator.of(context).pop();
         showOk(context, tr('حُذفت الفاتورة وعادت البضاعة للمخزون'));

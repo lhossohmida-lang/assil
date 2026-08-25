@@ -122,7 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: entry.key,
           builder: (_, _) => PinGate(
             section: entry.value.section,
-            title: entry.value.title,
+            title: entry.value.title(),
             child: entry.value.build(),
           ),
         ),
@@ -172,7 +172,12 @@ class ProtectedSection {
 
   /// مفتاح الفتح في هذه الجلسة — أقسام تتشارك المفتاح تُفتح معاً.
   final String section;
-  final String title;
+
+  /// عنوان القسم **دالةً لا نصّاً**: تُستدعى وقت بناء الشاشة فتتبع اللغة
+  /// الحالية. لو خُزّن نصّاً لتجمّد عند لحظة إنشاء الموجّه (بدء التطبيق)
+  /// فبقي بلغة الإقلاع مهما بدّل المستخدم لغته.
+  final String Function() title;
+
   final Widget Function() build;
 }
 
@@ -180,40 +185,42 @@ class ProtectedSection {
 ///
 /// ⚠️ الرقم السرّي يقفل **كل شيء إلا البيع**: العامل يبيع ولا يرى المخزون
 /// ولا الأرباح ولا الموردين ولا الإعدادات حتى يُعطيه صاحب المحل الرقم.
-final Map<String, ProtectedSection> protectedSections = {
+/// ⚠️ **getter لا `final`** — انظر [grantableScreens]: خريطة `final`
+/// تُقيَّم مرّة واحدة فتتجمّد عناوينها عند لغة الإقلاع.
+Map<String, ProtectedSection> get protectedSections => {
   AppRoutes.inventory:
-      ProtectedSection('inventory', tr('المخزون'), InventoryScreen.new),
+      ProtectedSection('inventory', () => tr('المخزون'), InventoryScreen.new),
   // كل باب استيراد يحمل مفتاح قسمه: من فتح «الموردين» بالرقم السرّي
   // يستورد موردين بلا أن يُطلب منه الرقم ثانيةً.
   AppRoutes.importProducts: ProtectedSection(
-      'inventory', tr('استيراد منتجات'), ImportProductsScreen.new),
+      'inventory', () => tr('استيراد منتجات'), ImportProductsScreen.new),
   AppRoutes.importSuppliers: ProtectedSection(
       'suppliers',
-      tr('استيراد موردين'),
+      () => tr('استيراد موردين'),
       () => const ImportProductsScreen(initialKind: ImportKind.suppliers)),
   AppRoutes.importCredits: ProtectedSection(
       'credits',
-      tr('استيراد كريديات'),
+      () => tr('استيراد كريديات'),
       () => const ImportProductsScreen(initialKind: ImportKind.credits)),
-  AppRoutes.reports: ProtectedSection('reports', tr('التقارير'), ReportsScreen.new),
+  AppRoutes.reports: ProtectedSection('reports', () => tr('التقارير'), ReportsScreen.new),
   AppRoutes.ledgerSearch:
-      ProtectedSection('reports', tr('بحث في السجل'), LedgerSearchScreen.new),
+      ProtectedSection('reports', () => tr('بحث في السجل'), LedgerSearchScreen.new),
   AppRoutes.capital:
-      ProtectedSection('capital', tr('رأس المال والزكاة'), CapitalScreen.new),
-  AppRoutes.credits: ProtectedSection('credits', tr('الكريديات'), CreditsScreen.new),
+      ProtectedSection('capital', () => tr('رأس المال والزكاة'), CapitalScreen.new),
+  AppRoutes.credits: ProtectedSection('credits', () => tr('الكريديات'), CreditsScreen.new),
   AppRoutes.reservations:
-      ProtectedSection('reservations', tr('الفارسمون'), ReservationsScreen.new),
+      ProtectedSection('reservations', () => tr('الفارسمون'), ReservationsScreen.new),
   AppRoutes.customers:
-      ProtectedSection('customers', tr('الزبائن'), CustomersScreen.new),
+      ProtectedSection('customers', () => tr('الزبائن'), CustomersScreen.new),
   AppRoutes.suppliers:
-      ProtectedSection('suppliers', tr('الموردون'), SuppliersScreen.new),
+      ProtectedSection('suppliers', () => tr('الموردون'), SuppliersScreen.new),
   AppRoutes.purchases:
-      ProtectedSection('suppliers', tr('المشتريات'), PurchasesScreen.new),
+      ProtectedSection('suppliers', () => tr('المشتريات'), PurchasesScreen.new),
   AppRoutes.expenses:
-      ProtectedSection('expenses', tr('المصاريف'), ExpensesScreen.new),
+      ProtectedSection('expenses', () => tr('المصاريف'), ExpensesScreen.new),
   AppRoutes.employees:
-      ProtectedSection('employees', tr('العمال'), EmployeesScreen.new),
-  AppRoutes.orders: ProtectedSection('orders', tr('الطلبات'), OrdersScreen.new),
+      ProtectedSection('employees', () => tr('العمال'), EmployeesScreen.new),
+  AppRoutes.orders: ProtectedSection('orders', () => tr('الطلبات'), OrdersScreen.new),
   AppRoutes.settings:
-      ProtectedSection('settings', tr('الإعدادات'), SettingsScreen.new),
+      ProtectedSection('settings', () => tr('الإعدادات'), SettingsScreen.new),
 };

@@ -70,8 +70,8 @@ class _PinGateState extends ConsumerState<PinGate> {
         body: Center(child: Text(trf('تعذّر قراءة الإعدادات: {0}', [e]))),
       ),
       data: (settings) {
-        // لا رقم سرّي مضبوط ⇒ لا شيء نحميه بعد.
-        if (!settings.hasPin) return widget.child;
+        // لا رقم مضبوط، أو معطَّل، أو هذا القسم غير مختار للقفل ⇒ يمرّ.
+        if (!settings.isSectionLocked(widget.section)) return widget.child;
 
         return Scaffold(
           appBar: AppBar(title: Text(widget.title)),

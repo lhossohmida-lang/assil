@@ -92,9 +92,13 @@ void main() {
       expect(map.containsKey('vipDiscountPercent'), isFalse,
           reason: 'نسبة خصم VIP شأن داخلي بين صاحب المحل وزبوناته');
       expect(map.containsKey('lastDayClose'), isFalse);
-      expect(map.containsKey('categories'), isFalse);
-      expect(map.containsKey('sizes'), isFalse);
+      expect(map.containsKey('sizes'), isFalse,
+          reason: 'المقاسات شأن المخزون لا الواجهة');
       expect(map.containsKey('colors'), isFalse);
+
+      // ملاحظة: `categories` **تُنشر عمداً** — واجهة المتجر مبنيّة عليها
+      // (بطاقات الأصناف بصورها)، وهي ما يراه الزائر أصلاً حين يتصفّح.
+      expect(map.containsKey('categories'), isTrue);
 
       // 🔒 الشعار تحديداً: عشرات الكيلوبايتات تُقرأ بلا مصادقة عند كل
       // زيارة، ومستند عام سقفه ميغابايت. الموقع له نسخته في public/.
@@ -112,6 +116,8 @@ void main() {
         'phone',
         'facebookUrl',
         'instagramUrl',
+        'categories',
+        'featured',
         'updatedAt',
       };
       expect(settings.toStorefrontMap().keys.toSet(), allowed);
