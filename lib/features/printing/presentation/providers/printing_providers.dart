@@ -6,7 +6,7 @@ import '../../data/print_settings_store.dart';
 import '../../domain/models/print_settings.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../services/print_service.dart';
-import '../../services/receipt_service.dart';
+import '../../services/branding_marks.dart';
 import '../../../../core/i18n/app_strings.dart';
 
 /// الإعدادات المقروءة من القرص **قبل** إقلاع الواجهة.
@@ -55,7 +55,10 @@ final receiptBrandingProvider = Provider<ReceiptBranding>((ref) {
   final settings = ref.watch(storeSettingsProvider).value;
   return ReceiptBranding(
     facebook: settings?.facebookUrl ?? '',
+    facebookName: settings?.facebookName ?? '',
     instagram: settings?.instagramUrl ?? '',
+    instagramName: settings?.instagramName ?? '',
+    website: settings?.storefrontUrl ?? '',
     logoBase64: settings?.logoBase64 ?? '',
   );
 });

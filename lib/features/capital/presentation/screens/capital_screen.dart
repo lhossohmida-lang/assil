@@ -8,6 +8,7 @@ import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../pos/presentation/providers/pos_providers.dart';
 import '../../../reports/presentation/providers/reports_providers.dart';
+import '../../../suppliers/presentation/providers/suppliers_providers.dart';
 import '../../domain/capital_math.dart';
 import '../../../../core/i18n/app_strings.dart';
 
@@ -15,6 +16,7 @@ final capitalSummaryProvider = Provider<CapitalSummary>((ref) => computeCapital(
       stock: ref.watch(inventoryProvider),
       cash: ref.watch(cashboxBalanceProvider),
       credits: ref.watch(totalCreditsRemainingProvider),
+      supplierDebt: ref.watch(totalSupplierDebtProvider),
     ));
 
 class CapitalScreen extends ConsumerWidget {
@@ -215,11 +217,15 @@ class _ZakatCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             _line(tr('المخزون'), money(s.stockSellValue)),
-            _line(tr('نقود الصندوق'), money(s.cash)),
             _line(
               tr('كريديات الزبائن (المتبقّي)'),
               money(s.credits),
-              hint: tr('دين مرجوّ فتجب فيه الزكاة'),
+              hint: tr('دين لنا مرجوّ فيُضاف'),
+            ),
+            _line(
+              tr('دَين الموردين'),
+              '− ${money(s.supplierDebt)}',
+              hint: tr('دين علينا فيُخصم'),
             ),
             const Divider(height: 18),
             Row(
@@ -244,6 +250,12 @@ class _ZakatCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            Text(
+              trf('نقود الصندوق ({0}) خارج هذا الحساب بحسب الطريقة المختارة.',
+                  [money(s.cash)]),
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 6),
             Text(
               tr('هذا حساب تقريبي معين على التقدير؛ الحول والنِّصاب وتفاصيل الديون المشكوك فيها تُراجَع مع أهل العلم.'),
               style: TextStyle(

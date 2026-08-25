@@ -8,8 +8,12 @@ const double zakatRate = 0.025;
 /// ═══ الفرق بين رأس المال ووعاء الزكاة ═══
 /// **رأس المال** = ما دُفع فعلاً في البضاعة (بسعر الشراء).
 ///
-/// **وعاء الزكاة** = كل مال مملوك مقوَّماً **بسعر البيع** (وهو ما تُقوَّم به
-/// عروض التجارة): البضاعة + نقد الصندوق + ديون الزبائن المرجوّة.
+/// **وعاء الزكاة** = البضاعة بسعر البيع + كريديات الزبائن (دين لنا)
+/// − ما ندين به للموردين.
+///
+/// ⚠️ **نقد الصندوق خارج الوعاء** بطلب صريح من صاحب المحل. كان داخلاً
+/// سابقاً؛ إن أردتَ إعادته فالتغيير سطر واحد في [CapitalSummary.zakatBase]
+/// ويُقابله اختبار مثبَّت في `test/capital_math_test.dart`.
 class CapitalSummary {
   const CapitalSummary({
     required this.stockCapital,
@@ -18,6 +22,7 @@ class CapitalSummary {
     required this.pieceCount,
     required this.cash,
     required this.credits,
+    required this.supplierDebt,
   });
 
   /// رأس المال: المخزون بسعر الشراء.
@@ -38,8 +43,17 @@ class CapitalSummary {
   /// الفائدة المنتظرة لو بِيع المخزون كلّه بسعره.
   double get expectedProfit => stockSellValue - stockCapital;
 
-  /// وعاء الزكاة.
-  double get zakatBase => stockSellValue + cash + credits;
+  /// ما ندين به للموردين — يُخصم من الوعاء لأنه مال في يدنا وليس لنا.
+  final double supplierDebt;
+
+  /// وعاء الزكاة = مخزون بسعر البيع + كريديات لنا − دَين علينا للموردين.
+  ///
+  /// لا ينزل تحت الصفر: محلّ مديون أكثر مما يملك لا زكاة عليه، ووعاء
+  /// سالب كان سيُنتج «زكاة سالبة» وهي بلا معنى.
+  double get zakatBase {
+    final base = stockSellValue + credits - supplierDebt;
+    return base < 0 ? 0 : base;
+  }
 
   double get zakat => zakatBase * zakatRate;
 
@@ -50,6 +64,7 @@ class CapitalSummary {
     pieceCount: 0,
     cash: 0,
     credits: 0,
+    supplierDebt: 0,
   );
 }
 
@@ -57,6 +72,7 @@ CapitalSummary computeCapital({
   required List<Product> stock,
   required double cash,
   required double credits,
+  double supplierDebt = 0,
 }) {
   var capital = 0.0;
   var sell = 0.0;
@@ -74,5 +90,6 @@ CapitalSummary computeCapital({
     pieceCount: pieces,
     cash: cash,
     credits: credits,
+    supplierDebt: supplierDebt,
   );
 }

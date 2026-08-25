@@ -1,9 +1,15 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/utils/formatters.dart';
 import '../domain/models/print_settings.dart';
+import '../domain/models/receipt_content.dart';
+import 'branding_marks.dart';
 import 'built_document.dart';
 import 'pdf_fonts.dart';
 import '../../../core/i18n/app_strings.dart';
@@ -52,11 +58,30 @@ class OrderLabelService {
   static Future<BuiltDocument> build({
     required OrderLabelData data,
     required OrderLabelSettings settings,
+    ReceiptBranding branding = ReceiptBranding.none,
   }) async {
     final theme = await PdfFonts.theme();
     final width = settings.widthMm * PdfPageFormat.mm;
     final height = settings.heightMm * PdfPageFormat.mm;
     final s = settings.fontScale;
+
+    // نفس سلسلة الوصل: صورة خاصّة بالملصق ← شعار المحل ← المضمَّن.
+    pw.ImageProvider? logoImage;
+    if (settings.logo.enabled) {
+      for (final encoded in [settings.logo.imageBase64, branding.logoBase64]) {
+        if (encoded.isEmpty) continue;
+        try {
+          logoImage = pw.MemoryImage(Uint8List.fromList(base64Decode(encoded)));
+          break;
+        } catch (_) {
+          logoImage = null; // صورة تالفة لا تُفشل الملصق.
+        }
+      }
+      if (logoImage == null) {
+        final bundled = await _bundledLogo();
+        if (bundled != null) logoImage = pw.MemoryImage(bundled);
+      }
+    }
 
     final doc = pw.Document();
     doc.addPage(
@@ -71,15 +96,30 @@ class OrderLabelService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            pw.Center(
-              child: pw.Text(
-                AppConstants.storeDisplayName,
-                style: pw.TextStyle(
-                  fontSize: 18 * s,
-                  fontWeight: pw.FontWeight.bold,
+            if (logoImage != null)
+              pw.Container(
+                alignment: _align(settings.logo.align),
+                margin: const pw.EdgeInsets.only(bottom: 3),
+                child: pw.Image(
+                  logoImage,
+                  width: settings.logo.widthMm * PdfPageFormat.mm,
+                  height: settings.logo.widthMm * PdfPageFormat.mm,
                 ),
               ),
-            ),
+            if (settings.showStoreName)
+              pw.Container(
+                alignment: _align(settings.storeNameAlign),
+                child: pw.Text(
+                  settings.storeName.trim().isEmpty
+                      ? AppConstants.storeDisplayName
+                      : settings.storeName.trim(),
+                  style: pw.TextStyle(
+                    fontSize: 18 * s,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            for (final line in settings.headerLines) _freeLine(line, s),
             pw.SizedBox(height: 2),
             pw.Center(
               child: pw.Text(
@@ -163,12 +203,14 @@ class OrderLabelService {
             pw.Divider(thickness: 1),
             if (data.deliveryFee > 0)
               _row(tr('التوصيل'), money(data.deliveryFee), s),
-            _row(tr('الإجمالي'), money(data.total), s, bold: true, big: true),
-            if (data.deposit > 0) ...[
-              _row(tr('العربون المدفوع'), money(data.deposit), s),
-              _row(tr('الباقي عند الاستلام'), money(data.remaining), s,
-                  bold: true, big: true),
-            ],
+            // الإجمالي يُطبع فقط حين يختلف عمّا سيُقبض، وإلا فهو سطر مكرّر.
+            if (data.deposit > 0) _row(tr('الإجمالي'), money(data.total), s),
+
+            // 🔒 الرقم الوحيد الذي يعني شيئاً لعامل التوصيل: كم يقبض.
+            // العربون **لا يُطبع**: هو شأن بين المحل والزبون، ووجوده على
+            // الملصق يدعو إلى الجدل عند الباب ولا يضيف للسائق شيئاً.
+            _row(tr('مجموع عند الاستلام'), money(data.remaining), s,
+                bold: true, big: true),
             if (data.notes.trim().isNotEmpty) ...[
               pw.SizedBox(height: 4),
               pw.Text(
@@ -177,6 +219,9 @@ class OrderLabelService {
                 maxLines: 3,
               ),
             ],
+            for (final line in settings.footerLines) _freeLine(line, s),
+            if (settings.qr.any)
+              brandingQrRow(qr: settings.qr, branding: branding, fontScale: s),
           ],
         ),
       ),
@@ -208,4 +253,43 @@ class OrderLabelService {
       ),
     );
   }
+
+  static Uint8List? _bundledLogoBytes;
+
+  /// يقرأ الشعار المضمَّن مرّة واحدة (انظر نظيره في `ReceiptService`).
+  static Future<Uint8List?> _bundledLogo() async {
+    if (_bundledLogoBytes != null) {
+      return _bundledLogoBytes!.isEmpty ? null : _bundledLogoBytes;
+    }
+    try {
+      final data = await rootBundle.load('assets/images/logo_mark.png');
+      _bundledLogoBytes = data.buffer.asUint8List();
+    } catch (_) {
+      _bundledLogoBytes = Uint8List(0);
+    }
+    return _bundledLogoBytes!.isEmpty ? null : _bundledLogoBytes;
+  }
+
+  static pw.Alignment _align(ReceiptAlign a) => switch (a) {
+        // الملصق يُطبع RTL، فـ start = يمين الورقة.
+        ReceiptAlign.start => pw.Alignment.centerRight,
+        ReceiptAlign.center => pw.Alignment.center,
+        ReceiptAlign.end => pw.Alignment.centerLeft,
+      };
+
+  static pw.Widget _freeLine(ReceiptLine line, double s) {
+    if (line.text.trim().isEmpty) return pw.SizedBox();
+    return pw.Container(
+      alignment: _align(line.align),
+      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      child: pw.Text(
+        line.text,
+        style: pw.TextStyle(
+          fontSize: line.fontSize * s,
+          fontWeight: line.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
 }

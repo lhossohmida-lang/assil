@@ -10,30 +10,10 @@ import '../../../shared/utils/formatters.dart';
 import '../../sales/domain/models/sale.dart';
 import '../domain/models/print_settings.dart';
 import '../domain/models/receipt_content.dart';
+import 'branding_marks.dart';
 import 'built_document.dart';
 import 'pdf_fonts.dart';
 import '../../../core/i18n/app_strings.dart';
-
-/// هوية المحل المشتركة بين الأجهزة كما تُطبع على الوصل:
-/// روابط التواصل (رموز QR) وشعار المحل الذي اختاره صاحبه من الإعدادات.
-///
-/// منفصلة عن [ReceiptSettings] عمداً: تلك محلّية لكل جهاز (طابعته
-/// ومعايرته)، وهذه مشتركة تأتي من Firestore.
-class ReceiptBranding {
-  const ReceiptBranding({
-    this.facebook = '',
-    this.instagram = '',
-    this.logoBase64 = '',
-  });
-
-  final String facebook;
-  final String instagram;
-
-  /// شعار المحل المخصَّص (PNG مصغَّر، base64). فارغ ⇒ الشعار المضمَّن.
-  final String logoBase64;
-
-  static const ReceiptBranding none = ReceiptBranding();
-}
 
 /// بناء وصل البيع (بكرة 80مم عادةً).
 class ReceiptService {
@@ -236,7 +216,8 @@ class ReceiptService {
         // أسطر الذيل الحرّة — فيسبوك، هاتف، شكر، أي شيء.
         for (final line in settings.footerLines) _line(line, s),
 
-        if (settings.qr.any) _qrRow(settings, branding, s),
+        if (settings.qr.any)
+          brandingQrRow(qr: settings.qr, branding: branding, fontScale: s),
 
         if (showLogo && settings.logo.footer) ...[
           pw.SizedBox(height: 4),
@@ -249,57 +230,6 @@ class ReceiptService {
       ],
     );
   }
-
-  static pw.Widget _qrRow(
-    ReceiptSettings settings,
-    ReceiptBranding branding,
-    double s,
-  ) {
-    final size = settings.qr.sizeMm * PdfPageFormat.mm;
-    final codes = <pw.Widget>[
-      if (settings.qr.showFacebook && branding.facebook.isNotEmpty)
-        _qr(tr('فيسبوك'), branding.facebook, size, settings.qr.withLabels, s),
-      if (settings.qr.showInstagram && branding.instagram.isNotEmpty)
-        _qr(tr('إنستغرام'), branding.instagram, size, settings.qr.withLabels, s),
-    ];
-    if (codes.isEmpty) return pw.SizedBox();
-
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 4),
-      child: pw.Row(
-        mainAxisAlignment: codes.length == 1
-            ? pw.MainAxisAlignment.center
-            : pw.MainAxisAlignment.spaceEvenly,
-        children: codes,
-      ),
-    );
-  }
-
-  static pw.Widget _qr(
-    String label,
-    String data,
-    double size,
-    bool withLabel,
-    double s,
-  ) =>
-      pw.Column(
-        mainAxisSize: pw.MainAxisSize.min,
-        children: [
-          pw.SizedBox(
-            width: size,
-            height: size,
-            child: pw.BarcodeWidget(
-              barcode: pw.Barcode.qrCode(),
-              data: data,
-              drawText: false,
-              padding: pw.EdgeInsets.zero,
-              margin: pw.EdgeInsets.zero,
-            ),
-          ),
-          if (withLabel)
-            pw.Text(label, style: pw.TextStyle(fontSize: 7 * s)),
-        ],
-      );
 
   static pw.Widget _line(ReceiptLine line, double s) {
     if (line.text.trim().isEmpty) return pw.SizedBox();

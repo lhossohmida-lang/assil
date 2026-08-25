@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:image/image.dart' as img;
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/wilayas.dart';
 import '../domain/models/store_settings.dart';
 
 /// تجزئة الرقم السرّي — SHA-256. لا نخزّن الرقم نفسه أبداً.
@@ -52,6 +53,10 @@ class SettingsRepository {
         {'colors': colors.map((c) => c.toMap()).toList()},
         SetOptions(merge: true),
       );
+
+  /// يحفظ جدول أسعار التوصيل.
+  Future<void> setDelivery(DeliveryPricing pricing) =>
+      _ref.set({'delivery': pricing.toMap()}, SetOptions(merge: true));
 
   // ─────────── شعار المحل ───────────
 
@@ -124,6 +129,8 @@ class SettingsRepository {
     String? tagline,
     String? phone,
     String? storefrontUrl,
+    String? facebookName,
+    String? instagramName,
   }) async {
     final current = await read();
     final next = current.copyWith(
@@ -133,6 +140,8 @@ class SettingsRepository {
       storeTagline: tagline?.trim(),
       storePhone: phone?.trim(),
       storefrontUrl: storefrontUrl?.trim(),
+      facebookName: facebookName?.trim(),
+      instagramName: instagramName?.trim(),
     );
 
     final batch = _db.batch();
@@ -143,6 +152,8 @@ class SettingsRepository {
       'storeTagline': next.storeTagline,
       'storePhone': next.storePhone,
       'storefrontUrl': next.storefrontUrl,
+      'facebookName': next.facebookName,
+      'instagramName': next.instagramName,
     }, SetOptions(merge: true));
     batch.set(_publicRef, next.toStorefrontMap());
     await batch.commit();

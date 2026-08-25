@@ -12,11 +12,13 @@ import '../../../../shared/widgets/app_scaffold.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../printing/presentation/providers/printing_providers.dart';
+import '../../../printing/domain/models/print_content.dart';
 import '../../../printing/services/order_label_service.dart';
 import '../../../printing/services/print_service.dart';
 import '../../../printing/services/receipt_service.dart';
 import '../../../printing/services/ticket_service.dart';
 import '../providers/settings_providers.dart';
+import '../widgets/delivery_pricing_section.dart';
 import '../widgets/print_preview.dart';
 import '../widgets/printer_diagnostics_card.dart';
 import '../widgets/receipt_content_editor.dart';
@@ -43,6 +45,8 @@ class SettingsScreen extends ConsumerWidget {
           CatalogListsSection(),
           SizedBox(height: 8),
           SocialSection(),
+          SizedBox(height: 12),
+          DeliveryPricingSection(),
           SizedBox(height: 8),
           _PrintingSection(),
           SizedBox(height: 24),
@@ -423,7 +427,12 @@ class _PrintingSectionState extends ConsumerState<_PrintingSection> {
               ),
             ),
           ],
-          extra: const ReceiptContentEditor(),
+          extra: PrintContentEditor(
+            title: tr('محتوى الوصل'),
+            content: settings.receipt.content,
+            onChanged: (c) =>
+                notifier.updateReceipt(settings.receipt.withContent(c)),
+          ),
           preview: PrintPreview(
             label: tr('معاينة الوصل'),
             signature: jsonEncode(settings.receipt.toMap()),
@@ -586,12 +595,19 @@ class _PrintingSectionState extends ConsumerState<_PrintingSection> {
               ),
             ),
           ],
+          extra: PrintContentEditor(
+            title: tr('محتوى ملصق الشحن'),
+            content: settings.orderLabel.content,
+            onChanged: (c) =>
+                notifier.updateOrderLabel(settings.orderLabel.withContent(c)),
+          ),
           preview: PrintPreview(
             label: tr('معاينة الملصق'),
             signature: jsonEncode(settings.orderLabel.toMap()),
             build: () => OrderLabelService.build(
               data: _sampleOrder,
               settings: settings.orderLabel,
+              branding: ref.read(receiptBrandingProvider),
             ),
           ),
           onTestPrint: () => _test(

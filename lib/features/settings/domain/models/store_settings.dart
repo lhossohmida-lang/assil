@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../core/constants/wilayas.dart';
+
 import '../../../../shared/utils/formatters.dart';
 
 /// لون معرَّف من الإعدادات: اسم عربي + قيمة دقيقة اختارها صاحب المحل
@@ -58,6 +60,20 @@ class StoreSettings {
   final String facebookUrl;
   final String instagramUrl;
 
+  /// اسم الصفحة كما يُكتب تحت رمز QR على الوصل والملصق («الأصيل»،
+  /// «@alasil.dz»). فارغ ⇒ تُكتب «Facebook» / «Instagram».
+  ///
+  /// منفصل عن الرابط لأن الرابط طويل ولا يتّسع تحت رمز 20مم، والزبون
+  /// يمسح الرمز ولا يقرأ العنوان.
+  final String facebookName;
+  final String instagramName;
+
+  /// أسعار التوصيل حسب الولاية.
+  ///
+  /// مشتركة لا محلّية: من يؤكّد الطلب قد يكون على الهاتف ومن يطبع الملصق
+  /// على الحاسوب، ولا يجوز أن يختلف السعر بينهما.
+  final DeliveryPricing delivery;
+
   /// اسم المحل كما يظهر في **المتجر الإلكتروني**. فارغ = يُستعمل الاسم
   /// الافتراضي. (اسم الوصل شيء آخر: هو محلّي لكل جهاز في إعدادات الطباعة.)
   final String storeName;
@@ -99,6 +115,9 @@ class StoreSettings {
     this.storePhone = '',
     this.logoBase64 = '',
     this.storefrontUrl = '',
+    this.facebookName = '',
+    this.instagramName = '',
+    this.delivery = const DeliveryPricing(),
   });
 
   bool get hasPin => (pinHash ?? '').isNotEmpty;
@@ -139,6 +158,13 @@ class StoreSettings {
       storePhone: (m['storePhone'] ?? '') as String,
       logoBase64: (m['logoBase64'] ?? '') as String,
       storefrontUrl: (m['storefrontUrl'] ?? '') as String,
+      facebookName: (m['facebookName'] ?? '') as String,
+      instagramName: (m['instagramName'] ?? '') as String,
+      delivery: DeliveryPricing.fromMap(
+        m['delivery'] == null
+            ? null
+            : Map<String, dynamic>.from(m['delivery'] as Map),
+      ),
     );
   }
 
@@ -157,6 +183,9 @@ class StoreSettings {
         'storePhone': storePhone,
         'logoBase64': logoBase64,
         'storefrontUrl': storefrontUrl,
+        'facebookName': facebookName,
+        'instagramName': instagramName,
+        'delivery': delivery.toMap(),
       };
 
   StoreSettings copyWith({
@@ -173,6 +202,9 @@ class StoreSettings {
     String? storePhone,
     String? logoBase64,
     String? storefrontUrl,
+    String? facebookName,
+    String? instagramName,
+    DeliveryPricing? delivery,
   }) =>
       StoreSettings(
         pinHash: pinHash ?? this.pinHash,
@@ -188,5 +220,8 @@ class StoreSettings {
         storePhone: storePhone ?? this.storePhone,
         logoBase64: logoBase64 ?? this.logoBase64,
         storefrontUrl: storefrontUrl ?? this.storefrontUrl,
+        facebookName: facebookName ?? this.facebookName,
+        instagramName: instagramName ?? this.instagramName,
+        delivery: delivery ?? this.delivery,
       );
 }

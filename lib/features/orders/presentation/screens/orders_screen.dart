@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/wilayas.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/formatters.dart';
 import '../../../../shared/widgets/app_scaffold.dart';
@@ -159,6 +160,21 @@ class _OrderTile extends ConsumerStatefulWidget {
 class _OrderTileState extends ConsumerState<_OrderTile> {
   bool _busy = false;
 
+  /// جدول أسعار التوصيل المضبوط في الإعدادات.
+  DeliveryPricing get _pricing =>
+      ref.watch(storeSettingsProvider).value?.delivery ??
+      const DeliveryPricing();
+
+  /// سعر التوصيل الفعّال لهذا الطلب (من ولايته إن لم يأتِ بسعر).
+  double get _deliveryFee => _pricing.effectiveFee(
+        wilaya: widget.order.wilaya,
+        orderFee: widget.order.deliveryFee,
+      );
+
+  /// الإجمالي بعد إضافة التوصيل الذي لم يعرفه الموقع.
+  double get _totalWithDelivery =>
+      widget.order.total + (_deliveryFee - widget.order.deliveryFee);
+
   PublicOrder get order => widget.order;
 
   Color get _color => switch (order.status) {
@@ -243,12 +259,21 @@ class _OrderTileState extends ConsumerState<_OrderTile> {
                     ),
                   ),
                 const Divider(),
-                if (order.deliveryFee > 0)
-                  _kv(tr('التوصيل'), money(order.deliveryFee)),
-                _kv(tr('الإجمالي'), money(order.total), bold: true),
+                if (_deliveryFee > 0)
+                  _kv(
+                    order.deliveryFee > 0
+                        ? tr('التوصيل')
+                        : trf('التوصيل — {0}', [order.wilaya]),
+                    money(_deliveryFee),
+                  ),
+                _kv(tr('الإجمالي'), money(_totalWithDelivery), bold: true),
                 if (order.deposit > 0) ...[
                   _kv(tr('العربون'), money(order.deposit)),
-                  _kv(tr('الباقي'), money(order.remaining), bold: true),
+                  _kv(
+                    tr('مجموع عند الاستلام'),
+                    money(_totalWithDelivery - order.deposit),
+                    bold: true,
+                  ),
                 ],
               ],
             ),
@@ -409,9 +434,9 @@ class _OrderTileState extends ConsumerState<_OrderTile> {
         for (final item in order.items)
           OrderLabelItem(item.name, item.quantity, item.price),
       ],
-      total: order.total,
+      total: _totalWithDelivery,
       deposit: order.deposit,
-      deliveryFee: order.deliveryFee,
+      deliveryFee: _deliveryFee,
     );
 
     final outcome = await ref

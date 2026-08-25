@@ -137,20 +137,28 @@ class ReceiptQr {
   const ReceiptQr({
     this.showFacebook = false,
     this.showInstagram = false,
+    this.showWebsite = false,
     this.sizeMm = 20,
     this.withLabels = true,
   });
 
   final bool showFacebook;
   final bool showInstagram;
+
+  /// رمز المتجر الإلكتروني — مصدره `storefrontUrl` في إعدادات المتجر.
+  final bool showWebsite;
+
   final double sizeMm;
+
+  /// طباعة الأيقونة والاسم تحت كل رمز.
   final bool withLabels;
 
-  bool get any => showFacebook || showInstagram;
+  bool get any => showFacebook || showInstagram || showWebsite;
 
   factory ReceiptQr.fromMap(Map<String, dynamic> m) => ReceiptQr(
         showFacebook: (m['showFacebook'] ?? false) as bool,
         showInstagram: (m['showInstagram'] ?? false) as bool,
+        showWebsite: (m['showWebsite'] ?? false) as bool,
         sizeMm: m['sizeMm'] == null ? 20 : toDouble(m['sizeMm']),
         withLabels: (m['withLabels'] ?? true) as bool,
       );
@@ -158,6 +166,7 @@ class ReceiptQr {
   Map<String, dynamic> toMap() => {
         'showFacebook': showFacebook,
         'showInstagram': showInstagram,
+        'showWebsite': showWebsite,
         'sizeMm': sizeMm,
         'withLabels': withLabels,
       };
@@ -165,12 +174,14 @@ class ReceiptQr {
   ReceiptQr copyWith({
     bool? showFacebook,
     bool? showInstagram,
+    bool? showWebsite,
     double? sizeMm,
     bool? withLabels,
   }) =>
       ReceiptQr(
         showFacebook: showFacebook ?? this.showFacebook,
         showInstagram: showInstagram ?? this.showInstagram,
+        showWebsite: showWebsite ?? this.showWebsite,
         sizeMm: sizeMm ?? this.sizeMm,
         withLabels: withLabels ?? this.withLabels,
       );

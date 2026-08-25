@@ -232,6 +232,11 @@ class TicketSettings {
 }
 
 /// إعدادات ملصق الشحن لطلبات المتجر الإلكتروني.
+/// إعدادات ملصق الشحن.
+///
+/// يتشارك مع الوصل أصناف المحتوى نفسها ([ReceiptLine]، [ReceiptLogo]،
+/// [ReceiptQr]) عمداً: صاحب المحل يضبطهما بالطريقة ذاتها، والقارئ لا
+/// يتعلّم نموذجين لشيء واحد.
 class OrderLabelSettings {
   final String printerName;
   final double widthMm;
@@ -239,13 +244,35 @@ class OrderLabelSettings {
   final double marginMm;
   final double fontScale;
 
+  /// اسم المحل في رأس الملصق ومحاذاته.
+  final bool showStoreName;
+  final ReceiptAlign storeNameAlign;
+
+  /// الاسم المطبوع. فارغ ⇒ `AppConstants.storeDisplayName`.
+  final String storeName;
+
+  /// أسطر حرّة (هاتف، «الدفع عند الاستلام»، شروط الإرجاع...).
+  final List<ReceiptLine> lines;
+
+  final ReceiptLogo logo;
+  final ReceiptQr qr;
+
   const OrderLabelSettings({
     this.printerName = '',
     this.widthMm = 100,
     this.heightMm = 150,
     this.marginMm = 4,
     this.fontScale = 1.0,
+    this.showStoreName = true,
+    this.storeNameAlign = ReceiptAlign.center,
+    this.storeName = '',
+    this.lines = const [],
+    this.logo = const ReceiptLogo(enabled: false, widthMm: 18),
+    this.qr = const ReceiptQr(sizeMm: 16),
   });
+
+  List<ReceiptLine> get headerLines => lines.where((l) => !l.footer).toList();
+  List<ReceiptLine> get footerLines => lines.where((l) => l.footer).toList();
 
   factory OrderLabelSettings.fromMap(Map<String, dynamic> m) =>
       OrderLabelSettings(
@@ -254,6 +281,18 @@ class OrderLabelSettings {
         heightMm: m['heightMm'] == null ? 150 : toDouble(m['heightMm']),
         marginMm: m['marginMm'] == null ? 4 : toDouble(m['marginMm']),
         fontScale: m['fontScale'] == null ? 1.0 : toDouble(m['fontScale']),
+        showStoreName: (m['showStoreName'] ?? true) as bool,
+        storeNameAlign: ReceiptAlignLabel.parse(m['storeNameAlign'] as String?),
+        storeName: (m['storeName'] ?? '') as String,
+        lines: ((m['lines'] ?? const []) as List)
+            .map((e) => ReceiptLine.fromMap(Map<String, dynamic>.from(e as Map)))
+            .toList(),
+        logo: m['logo'] == null
+            ? const ReceiptLogo(enabled: false, widthMm: 18)
+            : ReceiptLogo.fromMap(Map<String, dynamic>.from(m['logo'] as Map)),
+        qr: m['qr'] == null
+            ? const ReceiptQr(sizeMm: 16)
+            : ReceiptQr.fromMap(Map<String, dynamic>.from(m['qr'] as Map)),
       );
 
   Map<String, dynamic> toMap() => {
@@ -262,6 +301,12 @@ class OrderLabelSettings {
         'heightMm': heightMm,
         'marginMm': marginMm,
         'fontScale': fontScale,
+        'showStoreName': showStoreName,
+        'storeNameAlign': storeNameAlign.code,
+        'storeName': storeName,
+        'lines': lines.map((l) => l.toMap()).toList(),
+        'logo': logo.toMap(),
+        'qr': qr.toMap(),
       };
 
   OrderLabelSettings copyWith({
@@ -270,6 +315,12 @@ class OrderLabelSettings {
     double? heightMm,
     double? marginMm,
     double? fontScale,
+    bool? showStoreName,
+    ReceiptAlign? storeNameAlign,
+    String? storeName,
+    List<ReceiptLine>? lines,
+    ReceiptLogo? logo,
+    ReceiptQr? qr,
   }) =>
       OrderLabelSettings(
         printerName: printerName ?? this.printerName,
@@ -277,6 +328,12 @@ class OrderLabelSettings {
         heightMm: heightMm ?? this.heightMm,
         marginMm: marginMm ?? this.marginMm,
         fontScale: fontScale ?? this.fontScale,
+        showStoreName: showStoreName ?? this.showStoreName,
+        storeNameAlign: storeNameAlign ?? this.storeNameAlign,
+        storeName: storeName ?? this.storeName,
+        lines: lines ?? this.lines,
+        logo: logo ?? this.logo,
+        qr: qr ?? this.qr,
       );
 }
 

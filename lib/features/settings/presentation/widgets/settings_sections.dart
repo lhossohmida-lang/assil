@@ -584,6 +584,8 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
   final _tagline = TextEditingController();
   final _phone = TextEditingController();
   final _storefrontUrl = TextEditingController();
+  final _facebookName = TextEditingController();
+  final _instagramName = TextEditingController();
   bool _initialized = false;
 
   @override
@@ -594,6 +596,8 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
     _tagline.dispose();
     _phone.dispose();
     _storefrontUrl.dispose();
+    _facebookName.dispose();
+    _instagramName.dispose();
     super.dispose();
   }
 
@@ -608,6 +612,8 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
       _tagline.text = settings.storeTagline;
       _phone.text = settings.storePhone;
       _storefrontUrl.text = settings.storefrontUrl;
+      _facebookName.text = settings.facebookName;
+      _instagramName.text = settings.instagramName;
       _initialized = true;
     }
 
@@ -683,6 +689,17 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
                 prefixIcon: Icon(Icons.facebook),
               ),
             ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _facebookName,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: tr('اسم صفحة فيسبوك'),
+                hintText: tr('الأصيل'),
+                helperText: tr('يُكتب بجانب الأيقونة تحت رمز QR على الوصل والملصق.'),
+                helperMaxLines: 2,
+              ),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: _instagram,
@@ -691,6 +708,15 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
                 labelText: tr('رابط إنستغرام'),
                 hintText: 'https://instagram.com/...',
                 prefixIcon: Icon(Icons.camera_alt_outlined),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _instagramName,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: tr('اسم حساب إنستغرام'),
+                hintText: '@alasil.dz',
               ),
             ),
             const SizedBox(height: 10),
@@ -703,6 +729,8 @@ class _SocialSectionState extends ConsumerState<SocialSection> {
                       tagline: _tagline.text,
                       phone: _phone.text,
                       storefrontUrl: _storefrontUrl.text,
+                      facebookName: _facebookName.text,
+                      instagramName: _instagramName.text,
                     );
                 if (context.mounted) {
                   showOk(context, tr('حُفظت بيانات المتجر ونُشرت للموقع'));

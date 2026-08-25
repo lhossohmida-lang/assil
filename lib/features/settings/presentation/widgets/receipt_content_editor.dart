@@ -9,29 +9,41 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/services/cloudinary_service.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/logo_watermark.dart';
-import '../../../printing/domain/models/print_settings.dart';
+import '../../../printing/domain/models/print_content.dart';
+import '../../../printing/services/branding_marks.dart';
 import '../../../printing/domain/models/receipt_content.dart';
-import '../../../printing/presentation/providers/printing_providers.dart';
 import '../providers/settings_providers.dart';
 import '../../../../core/i18n/app_strings.dart';
 
-/// محرّر محتوى وصل البيع: اسم المحل، الأسطر الحرّة، الشعار، ورموز QR.
-class ReceiptContentEditor extends ConsumerWidget {
-  const ReceiptContentEditor({super.key});
+/// محرّر محتوى ورقة مطبوعة: اسم المحل، الأسطر الحرّة، الشعار، ورموز QR.
+///
+/// يخدم **وصل البيع وملصق الشحن معاً** عبر [PrintContent]: صاحب المحل
+/// يضبطهما بالطريقة نفسها، وأي إصلاح هنا يصل الورقتين دفعةً واحدة.
+class PrintContentEditor extends ConsumerWidget {
+  const PrintContentEditor({
+    super.key,
+    required this.title,
+    required this.content,
+    required this.onChanged,
+  });
+
+  /// عنوان القسم («محتوى الوصل» / «محتوى ملصق الشحن»).
+  final String title;
+  final PrintContent content;
+  final ValueChanged<PrintContent> onChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final receipt = ref.watch(printSettingsProvider).receipt;
-    final notifier = ref.read(printSettingsProvider.notifier);
+    final receipt = content;
     final store = ref.watch(storeSettingsProvider).value;
 
-    void save(ReceiptSettings next) => notifier.updateReceipt(next);
+    void save(PrintContent next) => onChanged(next);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Divider(height: 24),
-        _Title(tr('محتوى الوصل')),
+        _Title(title),
 
         // ─── اسم المحل ───
         SwitchListTile(
@@ -185,10 +197,11 @@ class ReceiptContentEditor extends ConsumerWidget {
         const Divider(height: 20),
 
         // ─── رموز QR ───
-        _Title(tr('رموز QR للتواصل')),
-        if (store == null || !store.hasSocial)
+        _Title(tr('رموز QR')),
+        if (store == null ||
+            (!store.hasSocial && store.storefrontUrl.isEmpty))
           Text(
-            tr('أضف روابط فيسبوك وإنستغرام من قسم «فيسبوك وإنستغرام» أعلاه ليمكن طباعتها.'),
+            tr('أضف روابط فيسبوك وإنستغرام وعنوان المتجر من قسم «المتجر الإلكتروني والتواصل» أعلاه ليمكن طباعتها.'),
             style: TextStyle(fontSize: 12, color: AppTheme.warning),
           )
         else ...[
@@ -212,6 +225,21 @@ class ReceiptContentEditor extends ConsumerWidget {
               ),
               title: Text(tr('رمز إنستغرام')),
             ),
+          if (store.storefrontUrl.isNotEmpty)
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: receipt.qr.showWebsite,
+              onChanged: (v) => save(
+                receipt.copyWith(qr: receipt.qr.copyWith(showWebsite: v)),
+              ),
+              title: Text(tr('رمز المتجر الإلكتروني')),
+              subtitle: Text(
+                prettyDomain(store.storefrontUrl),
+                textDirection: TextDirection.ltr,
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+            ),
           if (receipt.qr.any) ...[
             SwitchListTile(
               dense: true,
@@ -220,7 +248,7 @@ class ReceiptContentEditor extends ConsumerWidget {
               onChanged: (v) => save(
                 receipt.copyWith(qr: receipt.qr.copyWith(withLabels: v)),
               ),
-              title: Text(tr('كتابة اسم الشبكة تحت الرمز')),
+              title: Text(tr('أيقونة واسم تحت كل رمز')),
             ),
             Row(
               children: [
@@ -249,8 +277,8 @@ class ReceiptContentEditor extends ConsumerWidget {
 
   Future<void> _pickLogo(
     BuildContext context,
-    ReceiptSettings receipt,
-    ValueChanged<ReceiptSettings> save,
+    PrintContent receipt,
+    ValueChanged<PrintContent> save,
   ) async {
     try {
       final file = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -276,8 +304,8 @@ class ReceiptContentEditor extends ConsumerWidget {
 
   Future<void> _editLine(
     BuildContext context,
-    ReceiptSettings receipt,
-    ValueChanged<ReceiptSettings> save,
+    PrintContent receipt,
+    ValueChanged<PrintContent> save,
     int? index,
   ) async {
     final existing = index == null ? null : receipt.lines[index];

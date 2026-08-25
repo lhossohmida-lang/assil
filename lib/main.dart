@@ -103,7 +103,23 @@ class KmsanApp extends ConsumerWidget {
         child: LogoWatermark(
           enabled: appearance.showLogoWatermark,
           opacity: appearance.watermarkOpacity,
-          child: _PrintWorkerHost(child: child ?? const SizedBox()),
+          // 🔒 المفتاح المرتبط باللغة ليس تجميلاً — بدونه لا تُترجم
+          // عناوين الشاشات إطلاقاً عند تبديل اللغة.
+          //
+          // السبب: شاشات الراوتر مسجَّلة نسخاً `const` (`const PosScreen()`)،
+          // وFlutter يتخطّى إعادة بناء أي widget نسخته **متطابقة** مع
+          // السابقة. فكانت الأجزاء المرتبطة بالمزوّدات وحدها تُعاد
+          // (المحتوى يتغيّر) بينما تبقى عناوين الحقول بالعربية — لأن
+          // `tr()` قُيّمت مرّة واحدة عند أول بناء ولم تُقيَّم ثانيةً.
+          //
+          // تغيير المفتاح يهدم الشجرة ويبنيها من جديد، فتُقيَّم `tr()`
+          // كلّها باللغة الجديدة. المسار المفتوح محفوظ في go_router خارج
+          // الشجرة فلا يضيع؛ ما يضيع نصّ نصف مكتوب في حقل، وهو مقبول
+          // في لحظة تبديل لغة.
+          child: KeyedSubtree(
+            key: ValueKey(appearance.languageCode),
+            child: _PrintWorkerHost(child: child ?? const SizedBox()),
+          ),
         ),
       ),
     );

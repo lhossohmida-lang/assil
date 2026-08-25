@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kmsan/features/inventory/domain/models/product.dart';
 import 'package:kmsan/features/printing/domain/models/print_settings.dart';
 import 'package:kmsan/features/printing/domain/models/receipt_content.dart';
+import 'package:kmsan/features/printing/services/branding_marks.dart';
 import 'package:kmsan/features/printing/services/receipt_service.dart';
 import 'package:kmsan/features/printing/services/ticket_service.dart';
 import 'package:kmsan/features/sales/domain/models/sale.dart';
@@ -199,6 +200,8 @@ void main() {
     });
   });
 
+  _brandingTests();
+
   group('تيكت الباركود — المقاس', () {
     const product = Product(
       id: 'x1',
@@ -272,3 +275,94 @@ void main() {
 const onePixelPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA'
     '60e6kgAAAABJRU5ErkJggg==';
+
+// ═══════════ رموز QR: الأيقونة والاسم والموقع ═══════════
+
+void _brandingTests() {
+  group('رموز QR على الوصل', () {
+    const branding = ReceiptBranding(
+      facebook: 'https://facebook.com/alasil',
+      facebookName: 'الأصيل',
+      instagram: 'https://instagram.com/alasil',
+      instagramName: '@alasil.dz',
+      website: 'https://assil.vercel.app/boutique',
+    );
+
+    test('كل رمز مفعَّل يزيد ارتفاع الوصل — أي أنه يُرسم فعلاً', () async {
+      final none = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(),
+        branding: branding,
+      );
+      final one = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(qr: ReceiptQr(showFacebook: true)),
+        branding: branding,
+      );
+      expect(one.format.height, greaterThan(none.format.height));
+    });
+
+    test('🔒 رمز الموقع يُرسم كبقيّة الرموز', () async {
+      final without = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(),
+        branding: branding,
+      );
+      final withWeb = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(qr: ReceiptQr(showWebsite: true)),
+        branding: branding,
+      );
+      expect(withWeb.format.height, greaterThan(without.format.height));
+    });
+
+    test('رمز مفعَّل بلا رابط لا يُرسم ولا يترك فراغاً', () async {
+      // إن فعّل صاحب المحل رمز إنستغرام ولم يضع رابطاً، يجب ألّا يظهر
+      // مربّع فارغ ولا أن يزيد الطول.
+      final empty = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(qr: ReceiptQr(showInstagram: true)),
+        branding: const ReceiptBranding(),
+      );
+      final plain = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(),
+        branding: const ReceiptBranding(),
+      );
+      expect(empty.format.height, plain.format.height);
+    });
+
+    test('الأيقونة والاسم يزيدان الارتفاع عن الرمز وحده', () async {
+      final bare = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(
+          qr: ReceiptQr(showFacebook: true, withLabels: false),
+        ),
+        branding: branding,
+      );
+      final labelled = await ReceiptService.build(
+        sale: saleWith(1),
+        settings: const ReceiptSettings(
+          qr: ReceiptQr(showFacebook: true, withLabels: true),
+        ),
+        branding: branding,
+      );
+      expect(labelled.format.height, greaterThan(bare.format.height));
+    });
+  });
+
+  group('اختصار عنوان الموقع تحت الرمز', () {
+    test('يُسقط البروتوكول وwww والمسار', () {
+      expect(prettyDomain('https://assil.vercel.app/boutique'),
+          'assil.vercel.app');
+      expect(prettyDomain('http://www.alasil.dz/'), 'alasil.dz');
+      expect(prettyDomain('alasil.dz'), 'alasil.dz');
+    });
+
+    test('عنوان فارغ أو غريب لا يرمي', () {
+      expect(prettyDomain(''), '');
+      expect(prettyDomain('   '), '');
+      expect(prettyDomain('https://'), '');
+    });
+  });
+}

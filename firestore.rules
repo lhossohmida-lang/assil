@@ -10,6 +10,18 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['storeId','role'])
         && request.resource.data.role == 'employee'
         && belongsToStore(request.auth.uid, request.resource.data.storeId);
+
+      // ...ويحذفها عند إزالة العامل.
+      //
+      // ⚠️ كانت هذه القاعدة ناقصة: `allow write` أعلاه تشترط
+      // `request.auth.uid == uid`، أي أن المستخدم يعدّل خريطته هو وحده.
+      // فكان حذف عامل يُرفض دائماً برسالة permission-denied مضلِّلة توحي
+      // بأن القواعد لم تُنشر أصلاً.
+      //
+      // الشرط `storeId == request.auth.uid` يقصر الحذف على **صاحب المحل**
+      // (معرّف المتجر = uid صاحبه) لا على أي عامل، فلا يُخرج عاملٌ زميله.
+      allow delete: if request.auth != null
+        && resource.data.storeId == request.auth.uid;
     }
 
     match /stores/{storeId}/{document=**} {

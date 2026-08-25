@@ -31,6 +31,7 @@ class InventoryStats {
     required this.typeCount,
     required this.pieceCount,
     required this.lowStockCount,
+    required this.outOfStockCount,
     required this.capitalValue,
     required this.sellValue,
   });
@@ -41,8 +42,15 @@ class InventoryStats {
   /// مجموع القطع.
   final int pieceCount;
 
-  /// عدد الأنواع التي قاربت النفاد.
+  /// عدد الأنواع التي قاربت النفاد (كميتها ≤ الحدّ الأدنى) — يشمل
+  /// المنتهية أيضاً لأن الصفر ≤ أي حدّ.
   final int lowStockCount;
+
+  /// عدد الأنواع التي **نفدت تماماً** (كمية صفر).
+  ///
+  /// منفصل عن [lowStockCount] لأن الفرق عملي: «قارب النفاد» تذكير
+  /// بالطلب من المورّد، و«نفد» بضاعة تُعرض على زبون ليست عنده.
+  final int outOfStockCount;
 
   /// رأس المال = مجموع (سعر الشراء × الكمية).
   final double capitalValue;
@@ -54,11 +62,13 @@ class InventoryStats {
 InventoryStats computeStats(List<Product> products) {
   var pieces = 0;
   var low = 0;
+  var out = 0;
   var capital = 0.0;
   var sell = 0.0;
   for (final p in products) {
     pieces += p.quantity;
     if (p.isLowStock) low++;
+    if (p.quantity <= 0) out++;
     capital += p.purchasePrice * p.quantity;
     sell += p.sellPrice * p.quantity;
   }
@@ -66,6 +76,7 @@ InventoryStats computeStats(List<Product> products) {
     typeCount: products.length,
     pieceCount: pieces,
     lowStockCount: low,
+    outOfStockCount: out,
     capitalValue: capital,
     sellValue: sell,
   );

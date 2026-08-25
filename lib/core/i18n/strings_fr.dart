@@ -1046,4 +1046,54 @@ const Map<String, String> frenchStrings = <String, String>{
   'اسم المحل الافتراضي': 'Nom par défaut du magasin',
   'يُغيَّر على الوصل من «محتوى الوصل»، وفي الموقع من «المتجر الإلكتروني».':
       'Se modifie sur le ticket via « Contenu du ticket », et sur le site via « Boutique en ligne ».',
+
+  // ─── أسعار التوصيل ───
+  'أسعار التوصيل': 'Frais de livraison',
+  'السعر الموحّد لكل الولايات':
+      'Tarif unique pour toutes les wilayas',
+  'يُستعمل لأي ولاية لم تضبط لها سعراً خاصاً.':
+      'Utilisé pour toute wilaya sans tarif spécifique.',
+  'تحديد سعر لولاية بعينها': 'Définir un tarif par wilaya',
+  'إخفاء الولايات': 'Masquer les wilayas',
+  'ابحث عن ولاية أو رقمها...':
+      'Rechercher une wilaya ou son numéro...',
+  'المضبوطة فقط': 'Définies seulement',
+  'لا ولاية بسعر خاص بعد.':
+      'Aucune wilaya avec un tarif spécifique.',
+  'لا نتيجة لبحثك.': 'Aucun résultat.',
+  'إعادة إلى السعر الموحّد': 'Revenir au tarif unique',
+  'حُفظ سعر التوصيل': 'Frais de livraison enregistrés',
+  '{0} ولاية بسعر خاص': '{0} wilaya(s) à tarif spécifique',
+  'التوصيل — {0}': 'Livraison — {0}',
+  'مجموع عند الاستلام': 'Total à la réception',
+
+  // ─── تصفية المخزون ───
+  'إخفاء ما نفد': 'Masquer les épuisés',
+  'كل الأنواع': 'Tous les types',
+  'تصفية حسب النوع': 'Filtrer par type',
+  'عرض ما نفد فقط': 'Afficher seulement les épuisés',
+  'ما نفد مخفيّ': 'Les épuisés sont masqués',
+  'لا منتج نفد — المخزون بخير.':
+      'Aucun produit épuisé — le stock va bien.',
+  'لا منتج قارب النفاد.': 'Aucun produit bientôt épuisé.',
+  'لا منتج بهذه التصفية.': 'Aucun produit avec ce filtre.',
+
+  // ─── الزكاة ───
+  'دَين الموردين': 'Dettes fournisseurs',
+  'دين لنا مرجوّ فيُضاف': 'Créance attendue — ajoutée',
+  'دين علينا فيُخصم': 'Dette à notre charge — déduite',
+  'نقود الصندوق ({0}) خارج هذا الحساب بحسب الطريقة المختارة.':
+      'L’argent en caisse ({0}) est exclu de ce calcul selon la méthode choisie.',
+
+  // ─── رموز QR وأسماء الحسابات ───
+  'رموز QR': 'QR codes',
+  'رمز المتجر الإلكتروني': 'QR de la boutique en ligne',
+  'أيقونة واسم تحت كل رمز': 'Icône et nom sous chaque code',
+  'أضف روابط فيسبوك وإنستغرام وعنوان المتجر من قسم «المتجر الإلكتروني والتواصل» أعلاه ليمكن طباعتها.':
+      'Ajoutez les liens Facebook, Instagram et l’adresse de la boutique dans la section « Boutique en ligne et réseaux » ci-dessus pour pouvoir les imprimer.',
+  'اسم صفحة فيسبوك': 'Nom de la page Facebook',
+  'اسم حساب إنستغرام': 'Nom du compte Instagram',
+  'يُكتب بجانب الأيقونة تحت رمز QR على الوصل والملصق.':
+      'Inscrit à côté de l’icône sous le QR code, sur le ticket et l’étiquette.',
+  'محتوى ملصق الشحن': 'Contenu de l’étiquette',
 };

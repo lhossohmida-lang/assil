@@ -10,6 +10,7 @@ import '../../inventory/domain/models/product.dart';
 import '../../sales/domain/models/sale.dart';
 import 'built_document.dart';
 import 'order_label_service.dart';
+import 'branding_marks.dart';
 import 'receipt_service.dart';
 import 'ticket_service.dart';
 import '../../../core/i18n/app_strings.dart';
@@ -128,6 +129,7 @@ class PrintService {
     final doc = await OrderLabelService.build(
       data: data,
       settings: settings.orderLabel,
+      branding: branding,
     );
     return _printLocal(
       printerName: settings.orderLabel.printerName,

@@ -23,10 +23,31 @@ class InventoryScreen extends ConsumerStatefulWidget {
   ConsumerState<InventoryScreen> createState() => _InventoryScreenState();
 }
 
+/// ما يُعرض من المخزون.
+enum StockView {
+  /// كل شيء (مع احترام «إخفاء المنتهي»).
+  all,
+
+  /// ما قارب النفاد ولم ينفد بعد — تذكير بالطلب من المورّد.
+  low,
+
+  /// ما نفد تماماً.
+  out,
+}
+
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchCtrl = TextEditingController();
   String _query = '';
-  bool _lowStockOnly = false;
+  StockView _view = StockView.all;
+
+  /// إخفاء ما نفد من القائمة العامة.
+  ///
+  /// لا يُطبَّق حين تكون الشاشة على [StockView.out]: من ضغط بطاقة «نفد»
+  /// يريد رؤيتها، ولو أخفيناها لرأى قائمة فارغة بلا تفسير.
+  bool _hideOutOfStock = false;
+
+  /// نوع المنتج المختار من أزرار التصفية. فارغ = الكل.
+  String _category = '';
 
   @override
   void dispose() {
@@ -34,16 +55,35 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
+  bool get _filtering =>
+      _view != StockView.all || _hideOutOfStock || _category.isNotEmpty;
+
   List<Product> _filter(List<Product> all) {
     var list = all;
     if (_query.trim().isNotEmpty) {
       list = list.where((p) => p.matches(_query)).toList();
     }
-    if (_lowStockOnly) {
-      list = list.where((p) => p.isLowStock).toList();
+    if (_category.isNotEmpty) {
+      list = list.where((p) => p.category == _category).toList();
+    }
+    switch (_view) {
+      case StockView.low:
+        // «قارب النفاد» لا يشمل ما نفد: لكلٍّ بطاقته، وخلطهما يجعل
+        // الرقمين لا يطابقان ما تراه العين في القائمة.
+        list = list.where((p) => p.isLowStock && p.quantity > 0).toList();
+      case StockView.out:
+        list = list.where((p) => p.quantity <= 0).toList();
+      case StockView.all:
+        if (_hideOutOfStock) {
+          list = list.where((p) => p.quantity > 0).toList();
+        }
     }
     return list;
   }
+
+  void _setView(StockView view) => setState(
+        () => _view = _view == view ? StockView.all : view,
+      );
 
   Future<void> _scan() async {
     final code = await ScannerService.scanOnce(context);
@@ -59,6 +99,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final async = ref.watch(allProductsProvider);
     final products = ref.watch(inventoryProvider);
     final stats = ref.watch(inventoryStatsProvider);
+    final categories = ref.watch(categoriesProvider);
     final filtered = _filter(products);
 
     return AppScaffold(
@@ -114,29 +155,90 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 Expanded(
                   child: StatCard(
                     label: tr('قارب النفاد'),
-                    value: '${stats.lowStockCount}',
+                    value: '${stats.lowStockCount - stats.outOfStockCount}',
                     icon: Icons.warning_amber_rounded,
                     color: AppTheme.warning,
-                    onTap: () =>
-                        setState(() => _lowStockOnly = !_lowStockOnly),
+                    onTap: () => _setView(StockView.low),
+                  ),
+                ),
+                Expanded(
+                  child: StatCard(
+                    label: tr('نفد'),
+                    value: '${stats.outOfStockCount}',
+                    icon: Icons.remove_shopping_cart_outlined,
+                    color: AppTheme.danger,
+                    onTap: () => _setView(StockView.out),
                   ),
                 ),
               ],
             ),
           ),
 
-          if (_lowStockOnly)
+          // ─── أزرار التصفية ───
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                FilterChip(
+                  label: Text(tr('إخفاء ما نفد')),
+                  selected: _hideOutOfStock,
+                  avatar: Icon(
+                    _hideOutOfStock
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 16,
+                  ),
+                  onSelected: _view == StockView.out
+                      ? null
+                      : (v) => setState(() => _hideOutOfStock = v),
+                ),
+                const SizedBox(width: 8),
+                _CategoryChip(
+                  label: tr('كل الأنواع'),
+                  selected: _category.isEmpty,
+                  onTap: () => setState(() => _category = ''),
+                ),
+                for (final c in categories) ...[
+                  const SizedBox(width: 6),
+                  _CategoryChip(
+                    label: c,
+                    selected: _category == c,
+                    onTap: () => setState(
+                      () => _category = _category == c ? '' : c,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          if (_filtering)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.filter_alt,
-                      size: 16, color: AppTheme.warning),
+                  Icon(Icons.filter_alt, size: 16, color: AppTheme.primary),
                   const SizedBox(width: 6),
-                  Text(tr('عرض ما قارب النفاد فقط')),
-                  const Spacer(),
+                  Expanded(
+                    child: Text(
+                      switch (_view) {
+                        StockView.low => tr('عرض ما قارب النفاد فقط'),
+                        StockView.out => tr('عرض ما نفد فقط'),
+                        StockView.all => _hideOutOfStock
+                            ? tr('ما نفد مخفيّ')
+                            : tr('تصفية حسب النوع'),
+                      },
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                   TextButton(
-                    onPressed: () => setState(() => _lowStockOnly = false),
+                    onPressed: () => setState(() {
+                      _view = StockView.all;
+                      _hideOutOfStock = false;
+                      _category = '';
+                    }),
                     child: Text(tr('إلغاء الفلتر')),
                   ),
                 ],
@@ -160,6 +262,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   );
                 }
                 if (filtered.isEmpty) {
+                  // رسالة «لا نتائج لـ ««»» على فلتر بلا بحث كانت تُربك:
+                  // الفراغ سببه الفلتر لا كلمة البحث.
+                  if (_query.trim().isEmpty) {
+                    return EmptyState(
+                      icon: Icons.filter_alt_off,
+                      message: switch (_view) {
+                        StockView.out => tr('لا منتج نفد — المخزون بخير.'),
+                        StockView.low => tr('لا منتج قارب النفاد.'),
+                        StockView.all => tr('لا منتج بهذه التصفية.'),
+                      },
+                    );
+                  }
                   return EmptyState(
                     icon: Icons.search_off,
                     message: trf('لا نتائج لـ «{0}»', [_query]),
@@ -329,5 +443,28 @@ class _InventoryMenu extends ConsumerWidget {
           if (context.mounted) showErr(context, '$e');
         }
     }
+  }
+}
+
+
+/// زرّ تصفية حسب نوع المنتج.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    );
   }
 }
