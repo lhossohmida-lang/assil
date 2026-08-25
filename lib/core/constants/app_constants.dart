@@ -86,6 +86,9 @@ class AppRoutes {
   static const String login = '/login';
   static const String pos = '/pos';
   static const String inventory = '/inventory';
+  static const String noAccess = '/no-access';
+  static const String sessionError = '/session-error';
+
   static const String importProducts = '/import-products';
   static const String importSuppliers = '/import-suppliers';
   static const String importCredits = '/import-credits';

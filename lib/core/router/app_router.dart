@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/models/app_user.dart';
+import '../../features/auth/data/auth_repository.dart' show arabicAuthError;
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/no_access_screen.dart';
 import '../../features/capital/presentation/screens/capital_screen.dart';
 import '../../features/customers/presentation/screens/customers_screen.dart';
 import '../../features/inventory/presentation/screens/inventory_screen.dart';
@@ -55,25 +57,59 @@ final routerProvider = Provider<GoRouter>((ref) {
         return loc == '/splash' ? null : '/splash';
       }
 
+      // ⚠️ حالة الخطأ ليست «غير مسجَّل دخوله».
+      //
+      // كانت تُعامَل كذلك فيُرمى المستخدم إلى شاشة الدخول بلا كلمة، فيظنّ
+      // كلمة مروره خاطئة ويعيدها مراراً بينما السبب شبكة أو صلاحية.
+      if (session.hasError) {
+        return loc == AppRoutes.sessionError ? null : AppRoutes.sessionError;
+      }
+
       final value = session.value;
       if (value == null) {
         return loc == AppRoutes.login ? null : AppRoutes.login;
       }
 
-      // مسجَّل دخوله: لا يبقى في شاشة الدخول ولا في الانتظار.
-      if (loc == AppRoutes.login || loc == '/splash') {
-        return _firstAllowedRoute(value.appUser.canAccess);
+      final landing = firstAllowedRoute(value.appUser.canAccess);
+
+      // مسجَّل دخوله: لا يبقى في شاشة الدخول ولا في الانتظار ولا في
+      // شاشة الخطأ بعد أن زال الخطأ.
+      if (loc == AppRoutes.login ||
+          loc == '/splash' ||
+          loc == AppRoutes.sessionError) {
+        return landing;
       }
+
+      // بلا أي صلاحية: يبقى في شاشة التوضيح ولا يُرتَدّ إلى الدخول.
+      if (landing == AppRoutes.noAccess) {
+        return loc == AppRoutes.noAccess ? null : AppRoutes.noAccess;
+      }
+
+      // صار له صلاحية وهو في شاشة «بلا صلاحيات» ⇒ ينتقل تلقائياً.
+      if (loc == AppRoutes.noAccess) return landing;
 
       // منع فتح قسم غير مسموح (بكتابة المسار يدوياً مثلاً).
       if (grantableScreens.containsKey(loc) && !value.appUser.canAccess(loc)) {
-        return _firstAllowedRoute(value.appUser.canAccess);
+        return landing;
       }
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const _SplashScreen()),
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: AppRoutes.noAccess,
+        builder: (_, _) => const NoAccessScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.sessionError,
+        builder: (context, state) {
+          final error = ref.read(sessionProvider).error;
+          return SessionErrorScreen(
+            message: error == null ? tr('خطأ غير معروف') : arabicAuthError(error),
+          );
+        },
+      ),
 
       // نقطة البيع — **القسم الوحيد بلا رقم سرّي**: البائع يبيع دون أن
       // يعرف الرقم، وكل ما عداها مقفل.
@@ -99,11 +135,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// أول قسم مسموح للمستخدم — لا نرمي عاملاً بلا صلاحية «نقطة البيع» في شاشة
 /// يراها فارغة، بل نفتح له أول ما يملكه.
-String _firstAllowedRoute(bool Function(String) canAccess) {
+///
+/// 🔒 **ممنوع منعاً باتاً أن يُرجع `AppRoutes.login`.** كان يفعل حين لا
+/// يملك المستخدم أي قسم، فيرتدّ العامل من شاشة الدخول إليها نفسها بعد
+/// نجاح مصادقته: تتوقّف الدوّارة ولا يحدث شيء، بلا رسالة ولا سبب. من
+/// أسوأ الأعطال لأنه صامت تماماً — لا العامل يفهم ولا صاحب المحل.
+String firstAllowedRoute(bool Function(String) canAccess) {
   for (final route in _priority) {
     if (canAccess(route)) return route;
   }
-  return AppRoutes.login;
+  return AppRoutes.noAccess;
 }
 
 /// ترتيب أولوية فتح الأقسام (نقطة البيع أولاً).

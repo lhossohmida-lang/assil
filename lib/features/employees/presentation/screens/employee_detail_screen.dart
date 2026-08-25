@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/formatters.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../auth/domain/models/app_user.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/widgets/invoice_detail_sheet.dart';
 import '../../../sales/domain/models/sale.dart';
 import '../providers/employees_providers.dart';
@@ -17,8 +18,13 @@ class EmployeeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // لسان الصلاحيات لصاحب المحل وحده، ولا يُعرض على حسابه هو
+    // (الأدمن يرى كل شيء بحكم دوره، فلا معنى لجدول أقسامه).
+    final me = ref.watch(currentUserProvider);
+    final canEditPermissions = (me?.isAdmin ?? false) && !user.isAdmin;
+
     return DefaultTabController(
-      length: 2,
+      length: canEditPermissions ? 3 : 2,
       child: Scaffold(
         appBar: AppBar(
           title: Text(user.name.isEmpty ? user.email : user.name),
@@ -29,6 +35,8 @@ class EmployeeDetailScreen extends ConsumerWidget {
             tabs: [
               Tab(icon: Icon(Icons.receipt_long), text: tr('مبيعاته')),
               Tab(icon: Icon(Icons.money_off), text: tr('سحوباته')),
+              if (canEditPermissions)
+                Tab(icon: Icon(Icons.key), text: tr('الصلاحيات')),
             ],
           ),
         ),
@@ -36,6 +44,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
           children: [
             _SalesTab(user: user),
             _WithdrawalsTab(user: user),
+            if (canEditPermissions) _PermissionsTab(user: user),
           ],
         ),
       ),
@@ -255,6 +264,108 @@ class _Metric extends StatelessWidget {
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color ?? AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// تعديل أقسام العامل بعد إنشائه.
+///
+/// ⚠️ لم تكن هذه الشاشة موجودة: الصلاحيات كانت تُكتب **مرّة واحدة** عند
+/// الإنشاء بلا أي طريق لتغييرها. فعاملٌ أُنشئ بلا قسم كان يبقى محبوساً
+/// إلى الأبد، والعلاج الوحيد حذف حسابه وإنشاؤه من جديد — وفيه ضياع سجلّ
+/// سحوباته ومبيعاته المرتبطة بمعرّفه.
+///
+/// التغيير يسري **فوراً** على جهاز العامل بلا إعادة دخول، لأن الجلسة
+/// تبثّ مستند المستخدم (`watchUser`) ولا تقرؤه مرّة.
+class _PermissionsTab extends ConsumerStatefulWidget {
+  const _PermissionsTab({required this.user});
+  final AppUser user;
+
+  @override
+  ConsumerState<_PermissionsTab> createState() => _PermissionsTabState();
+}
+
+class _PermissionsTabState extends ConsumerState<_PermissionsTab> {
+  late final Set<String> _allowed = widget.user.allowedScreens.toSet();
+  bool _busy = false;
+
+  bool get _dirty {
+    final original = widget.user.allowedScreens.toSet();
+    return original.length != _allowed.length ||
+        !original.containsAll(_allowed);
+  }
+
+  Future<void> _save() async {
+    final storeId = ref.read(storeIdProvider);
+    if (storeId == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(authRepositoryProvider).updateEmployee(
+        storeId,
+        widget.user.uid,
+        {'allowedScreens': _allowed.toList()},
+      );
+      if (mounted) showOk(context, tr('حُفظت الصلاحيات'));
+    } catch (e) {
+      if (mounted) showErr(context, trf('تعذّر الحفظ: {0}', [e]));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (_allowed.isEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              tr('بلا أي قسم لن يستطيع هذا العامل فتح أي شاشة — سيرى رسالة «حسابك بلا صلاحيات» عند دخوله.'),
+              style: TextStyle(fontSize: 12, color: AppTheme.warning),
+            ),
+          ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              for (final entry in grantableScreens.entries)
+                CheckboxListTile(
+                  dense: true,
+                  value: _allowed.contains(entry.key),
+                  title: Text(entry.value),
+                  onChanged: _busy
+                      ? null
+                      : (checked) => setState(() {
+                            if (checked ?? false) {
+                              _allowed.add(entry.key);
+                            } else {
+                              _allowed.remove(entry.key);
+                            }
+                          }),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: (_busy || !_dirty) ? null : _save,
+              icon: const Icon(Icons.save),
+              label: Text(_busy ? tr('جارٍ الحفظ...') : tr('حفظ الصلاحيات')),
             ),
           ),
         ),

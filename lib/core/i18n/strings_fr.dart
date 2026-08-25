@@ -1096,4 +1096,23 @@ const Map<String, String> frenchStrings = <String, String>{
   'يُكتب بجانب الأيقونة تحت رمز QR على الوصل والملصق.':
       'Inscrit à côté de l’icône sous le QR code, sur le ticket et l’étiquette.',
   'محتوى ملصق الشحن': 'Contenu de l’étiquette',
+
+  // ─── صلاحيات العامل ودخوله ───
+  'الصلاحيات': 'Autorisations',
+  'حفظ الصلاحيات': 'Enregistrer les autorisations',
+  'حُفظت الصلاحيات': 'Autorisations enregistrées',
+  'جارٍ الحفظ...': 'Enregistrement…',
+  'اختر قسماً واحداً على الأقل — العامل بلا أقسام لا يستطيع فتح أي شاشة.':
+      'Choisissez au moins une section — un employé sans section ne peut ouvrir aucun écran.',
+  'بلا أي قسم لن يستطيع هذا العامل فتح أي شاشة — سيرى رسالة «حسابك بلا صلاحيات» عند دخوله.':
+      'Sans aucune section, cet employé ne pourra ouvrir aucun écran — il verra le message « Compte sans autorisations » à sa connexion.',
+  'حسابك بلا صلاحيات بعد':
+      'Votre compte n’a pas encore d’autorisations',
+  'دخلتَ بنجاح، لكن صاحب المحل لم يمنحك أي قسم. اطلب منه فتح قسم لك من شاشة «العمال» — وستدخل فوراً دون إعادة تسجيل الدخول.':
+      'Connexion réussie, mais le propriétaire ne vous a attribué aucune section. Demandez-lui de vous en ouvrir une depuis l’écran « Employés » — l’accès sera immédiat, sans vous reconnecter.',
+  'تعذّر تحميل حسابك': 'Impossible de charger votre compte',
+  'تسجيل الخروج وإعادة المحاولة': 'Se déconnecter et réessayer',
+  'خطأ غير معروف': 'Erreur inconnue',
+  'القواعد لا تسمح بهذه العملية لهذا الحساب. تأكّد أنك داخل بحساب صاحب المحل، وأن آخر نسخة من firestore.rules منشورة.':
+      'Les règles n’autorisent pas cette opération pour ce compte. Vérifiez que vous êtes connecté avec le compte du propriétaire et que la dernière version de firestore.rules est publiée.',
 };

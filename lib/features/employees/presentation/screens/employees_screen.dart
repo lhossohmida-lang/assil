@@ -170,6 +170,14 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    // 🔒 عامل بلا قسم واحد لا يستطيع فعل شيء: يدخل فيجد شاشة تقول له
+    // «حسابك بلا صلاحيات». نمنع إنشاءه أصلاً بدل أن نكتشف العطب لاحقاً.
+    if (_allowed.isEmpty) {
+      setState(() => _error = tr('اختر قسماً واحداً على الأقل — العامل بلا أقسام لا يستطيع فتح أي شاشة.'));
+      return;
+    }
+
     setState(() {
       _busy = true;
       _error = null;
