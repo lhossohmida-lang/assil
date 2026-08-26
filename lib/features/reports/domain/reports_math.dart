@@ -113,7 +113,7 @@ ReportSummary computeReport({
       purchases += tx.amount;
       continue;
     }
-    if (tx.type == CashboxType.saleReturn) {
+    if (tx.isSaleReturn) {
       // إرجاع بضاعة: **ليس مصروفاً**. الفاتورة نقصت بقيمة السلعة فنقصت
       // الفائدة الخام معها؛ عدّه مصروفاً يخصمه مرّة ثانية فتظهر «الفائدة
       // بعد المصاريف» أقلّ مما هي بمقدار الإرجاع كاملاً.

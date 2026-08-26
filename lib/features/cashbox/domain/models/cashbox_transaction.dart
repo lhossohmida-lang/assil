@@ -71,6 +71,13 @@ const List<String> legacyProfitWithdrawalNotes = [
   'سحب أرباح',
 ];
 
+/// بادئة ملاحظة الإرجاعات التي سُجّلت **مصروفاً** قبل وجود نوع مستقلّ.
+///
+/// نتعرّف عليها بالنصّ بدل تعديل بيانات المحل: تقارير الأشهر الماضية
+/// كانت تُظهر «الفائدة بعد المصاريف» أقلّ مما هي بمقدار كل إرجاع، وهذا
+/// يصحّحها بأثر رجعي بلا كتابة حرف واحد في قاعدة البيانات.
+const String legacyReturnNotePrefix = 'إرجاع ';
+
 class CashboxTransaction {
   final String id;
   final CashboxType type;
@@ -124,18 +131,34 @@ class CashboxTransaction {
     return legacyProfitWithdrawalNotes.any((n) => note.contains(n));
   }
 
+  /// هل هذه الحركة إرجاع بضاعة؟ تشمل الإرجاعات القديمة المصنّفة بالملاحظة.
+  bool get isSaleReturn {
+    if (type == CashboxType.saleReturn) return true;
+    if (type != CashboxType.expense) return false;
+    return note.startsWith(legacyReturnNotePrefix);
+  }
+
   /// مصروف حقيقي يُنقص «الفائدة بعد المصاريف».
   ///
-  /// مستثنى منه: سحب الأرباح (ربح المالك) وشراء البضاعة (تحويل لا استهلاك).
-  bool get isRealExpense => type == CashboxType.expense && !isProfitWithdrawal;
+  /// مستثنى منه: سحب الأرباح (ربح المالك) وشراء البضاعة (تحويل لا
+  /// استهلاك) وإرجاع البضاعة (إلغاء بيعة لا كلفة).
+  bool get isRealExpense =>
+      type == CashboxType.expense && !isProfitWithdrawal && !isSaleReturn;
 
   /// أثر الحركة على رصيد الصندوق.
   double get signedAmount => type.isCredit ? amount : -amount;
 
+  /// ⚠️ **كل نوع جديد يجب أن يُضاف هنا أيضاً.**
+  ///
+  /// السقوط الافتراضي إلى `expense` مقصود للبيانات القديمة، لكنه فخّ:
+  /// أُضيف `saleReturn` إلى التعداد وإلى الكاتب وإلى التقارير ونُسي هنا،
+  /// فكانت الحركة تُكتب `saleReturn` وتُقرأ `expense` — والإرجاع يبقى
+  /// محسوباً مصروفاً كأن الإصلاح لم يقع. يحرسه اختبار ذهاب-إياب.
   static CashboxType parseType(String? s) => switch (s) {
         'income' => CashboxType.income,
         'deposit' => CashboxType.deposit,
         'purchase' => CashboxType.purchase,
+        'saleReturn' => CashboxType.saleReturn,
         'profitWithdrawal' => CashboxType.profitWithdrawal,
         _ => CashboxType.expense,
       };

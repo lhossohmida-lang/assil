@@ -1151,4 +1151,17 @@ const Map<String, String> frenchStrings = <String, String>{
   // ─── الإرجاع ───
   'يعود للمخزون وتنقص الفاتورة بقيمته — كأنه لم يُبَع. ما دفعه الزبون زائداً عن الفاتورة الجديدة يُردّ نقداً، والباقي يُخصم من ذمّته.':
       'Il retourne au stock et la facture diminue d’autant — comme s’il n’avait pas été vendu. Ce que le client a payé en trop est rendu en espèces, le reste est déduit de sa dette.',
+
+  // ─── المشتريات في السجل ───
+  'شراء — {0}': 'Achat — {0}',
+  'مورّد': 'Fournisseur',
+  '{0} · {1} صنف · الإجمالي {2}':
+      '{0} · {1} article(s) · Total {2}',
+  'مدفوع {0} — الباقي دَين': 'Payé {0} — le reste est une dette',
+  'مسدَّدة بالكامل': 'Entièrement réglée',
+  'شراء بضاعة — ليس مصروفاً':
+      'Achat de marchandise — pas une dépense',
+  'حُذفت فاتورة الشراء': 'Facture d’achat supprimée',
+  'ستُلغى نهائياً: تعود الكمية من المخزون، وينقص رصيد المورّد بـ{0}، وتُحذف حركتها من الصندوق.\n\nملاحظة: سعر الشراء الحالي للمنتجات **لا يعود** إلى سابقه — صحّحه يدوياً إن لزم.':
+      'Annulation définitive : la quantité sort du stock, le solde du fournisseur baisse de {0}, et son mouvement de caisse est supprimé.\n\nNote : le prix d’achat actuel des produits ne revient PAS à sa valeur précédente — corrigez-le manuellement si besoin.',
 };

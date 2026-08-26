@@ -5,6 +5,8 @@ import '../../../cashbox/data/cashbox_repository.dart';
 import '../../../cashbox/domain/models/cashbox_transaction.dart';
 import '../../../pos/presentation/providers/pos_providers.dart';
 import '../../../sales/domain/models/sale.dart';
+import '../../../suppliers/domain/models/purchase.dart';
+import '../../../suppliers/presentation/providers/suppliers_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../domain/reports_math.dart';
 
@@ -80,6 +82,16 @@ final periodSalesProvider = Provider<List<Sale>>((ref) {
   return all.where((s) => range.contains(s.createdAt)).toList();
 });
 
+/// مشتريات الفترة — تظهر في السجل **ولو لم يُدفع منها شيء**.
+///
+/// الشراء بالدَّين لا يكتب حركة صندوق (لا نقد خرج)، فكان يغيب عن السجل
+/// تماماً: يستلم صاحب المحل بضاعة بمليون دينار ولا يرى لها أثراً.
+final periodPurchasesProvider = Provider<List<Purchase>>((ref) {
+  final range = ref.watch(dateRangeProvider);
+  final all = ref.watch(purchasesProvider).value ?? const <Purchase>[];
+  return all.where((p) => range.contains(p.createdAt)).toList();
+});
+
 final periodTransactionsProvider = Provider<List<CashboxTransaction>>((ref) {
   final range = ref.watch(dateRangeProvider);
   final all =
@@ -94,15 +106,25 @@ final reportSummaryProvider = Provider<ReportSummary>((ref) => computeReport(
 
 /// عنصر في السجل الموحّد: فاتورة أو حركة صندوق.
 class LedgerEntry {
-  const LedgerEntry.sale(this.sale) : transaction = null;
-  const LedgerEntry.transaction(this.transaction) : sale = null;
+  const LedgerEntry.sale(this.sale)
+      : transaction = null,
+        purchase = null;
+  const LedgerEntry.transaction(this.transaction)
+      : sale = null,
+        purchase = null;
+  const LedgerEntry.purchase(this.purchase)
+      : sale = null,
+        transaction = null;
 
   final Sale? sale;
   final CashboxTransaction? transaction;
+  final Purchase? purchase;
 
   bool get isSale => sale != null;
+  bool get isPurchase => purchase != null;
   DateTime get at =>
-      (sale?.createdAt ?? transaction?.createdAt) ?? DateTime(0);
+      (sale?.createdAt ?? purchase?.createdAt ?? transaction?.createdAt) ??
+      DateTime(0);
 }
 
 /// السجل الموحّد للفترة: الفواتير والسحوبات معاً، الأحدث أولاً.
@@ -112,11 +134,17 @@ class LedgerEntry {
 final ledgerProvider = Provider<List<LedgerEntry>>((ref) {
   final sales = ref.watch(periodSalesProvider);
   final txs = ref.watch(periodTransactionsProvider);
+  final buys = ref.watch(periodPurchasesProvider);
 
   final entries = <LedgerEntry>[
     for (final s in sales) LedgerEntry.sale(s),
+    for (final b in buys) LedgerEntry.purchase(b),
     for (final t in txs)
-      if (t.type != CashboxType.income) LedgerEntry.transaction(t),
+      // حركة الدخل مخفيّة لأن فاتورتها معروضة، وحركة الشراء مخفيّة
+      // لأن **فاتورة الشراء نفسها** معروضة — وعرضهما معاً يُظهر كل
+      // عملية سطرين. وفاتورة الشراء أصدق: تظهر ولو لم يُدفع شيء.
+      if (t.type != CashboxType.income && t.type != CashboxType.purchase)
+        LedgerEntry.transaction(t),
   ];
   entries.sort((a, b) => b.at.compareTo(a.at));
   return entries;

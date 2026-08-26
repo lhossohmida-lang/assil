@@ -11,7 +11,10 @@ import '../../../cashbox/domain/models/cashbox_transaction.dart';
 import '../../../cashbox/presentation/widgets/cashbox_dialogs.dart';
 import '../../../cashbox/presentation/widgets/close_day_dialog.dart';
 import '../../../pos/presentation/providers/pos_providers.dart';
+import '../../../inventory/presentation/providers/inventory_providers.dart';
 import '../../../sales/domain/models/sale.dart';
+import '../../../suppliers/domain/models/purchase.dart';
+import '../../../suppliers/presentation/providers/suppliers_providers.dart';
 import '../../domain/reports_math.dart';
 import '../providers/reports_providers.dart';
 import '../widgets/invoice_detail_sheet.dart';
@@ -365,6 +368,8 @@ class _LedgerTile extends ConsumerWidget {
       );
     }
 
+    if (entry.isPurchase) return _purchaseTile(context, ref, entry.purchase!);
+
     final tx = entry.transaction!;
     final isWithdrawal = !tx.type.isCredit;
     final color = tx.isProfitWithdrawal
@@ -479,5 +484,114 @@ class _ReportsMenu extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) showErr(context, '$e');
     }
+  }
+}
+
+/// فاتورة شراء في السجل.
+///
+/// تظهر **ولو لم يُدفع منها شيء**: الشراء بالدَّين لا يكتب حركة صندوق،
+/// فكان يغيب تماماً عن السجل ويستلم صاحب المحل بضاعة بلا أي أثر مكتوب.
+///
+/// الرقم المعروض هو **الباقي على المحل** حين يكون هناك باقٍ، بالسالب
+/// وبالأحمر — لأنه دَين لا مصروف. وإن سُدّدت كاملةً عُرض المدفوع بلا
+/// إشارة، فالمال خرج وانتهى الأمر.
+Widget _purchaseTile(BuildContext context, WidgetRef ref, Purchase purchase) {
+  final unpaid = (purchase.total - purchase.paidAmount)
+      .clamp(0, double.infinity)
+      .toDouble();
+  final hasDebt = unpaid > 0.009;
+
+  return Card(
+    color: hasDebt ? const Color(0xFFFFF5F5) : const Color(0xFFF3F6FA),
+    child: ListTile(
+      leading: CircleAvatar(
+        backgroundColor: (hasDebt ? AppTheme.danger : AppTheme.primary)
+            .withValues(alpha: 0.12),
+        child: Icon(
+          Icons.local_shipping_outlined,
+          color: hasDebt ? AppTheme.danger : AppTheme.primary,
+        ),
+      ),
+      title: Text(
+        trf('شراء — {0}', [
+          purchase.supplierName.isEmpty ? tr('مورّد') : purchase.supplierName,
+        ]),
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            trf('{0} · {1} صنف · الإجمالي {2}', [
+              formatTime(purchase.createdAt),
+              purchase.items.length,
+              money(purchase.total),
+            ]),
+            style: const TextStyle(fontSize: 12),
+          ),
+          Text(
+            hasDebt
+                ? trf('مدفوع {0} — الباقي دَين', [money(purchase.paidAmount)])
+                : tr('مسدَّدة بالكامل'),
+            style: TextStyle(
+              fontSize: 11,
+              color: hasDebt ? AppTheme.danger : AppTheme.textSecondary,
+            ),
+          ),
+          SellerBadge(name: purchase.createdByName),
+        ],
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            hasDebt ? '−${money(unpaid)}' : money(purchase.paidAmount),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: hasDebt ? AppTheme.danger : AppTheme.textPrimary,
+            ),
+          ),
+          Text(
+            tr('شراء بضاعة — ليس مصروفاً'),
+            style: TextStyle(fontSize: 9, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+      onTap: () => _confirmDeletePurchase(context, ref, purchase),
+    ),
+  );
+}
+
+/// حذف فاتورة شراء من السجل — إلغاء تامّ كأنها لم تقع.
+Future<void> _confirmDeletePurchase(
+  BuildContext context,
+  WidgetRef ref,
+  Purchase purchase,
+) async {
+  final ok = await confirmDialog(
+    context,
+    title: tr('حذف فاتورة الشراء'),
+    message: trf(
+      'ستُلغى نهائياً: تعود الكمية من المخزون، وينقص رصيد المورّد بـ{0}، وتُحذف حركتها من الصندوق.\n\nملاحظة: سعر الشراء الحالي للمنتجات **لا يعود** إلى سابقه — صحّحه يدوياً إن لزم.',
+      [money(purchase.total)],
+    ),
+    confirmLabel: tr('حذف'),
+    destructive: true,
+  );
+  if (!ok) return;
+
+  final repo = ref.read(suppliersRepositoryProvider);
+  if (repo == null) return;
+  final lookup = {
+    for (final p in ref.read(inventoryProvider)) p.id: p,
+  };
+  try {
+    await repo.deletePurchase(purchase, productLookup: lookup);
+    if (context.mounted) showOk(context, tr('حُذفت فاتورة الشراء'));
+  } catch (e) {
+    if (context.mounted) showErr(context, trf('تعذّر الحذف: {0}', [e]));
   }
 }

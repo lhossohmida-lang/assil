@@ -217,6 +217,7 @@ class _ZakatCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             _line(tr('المخزون'), money(s.stockSellValue)),
+            _line(tr('نقود الصندوق'), money(s.cash)),
             _line(
               tr('كريديات الزبائن (المتبقّي)'),
               money(s.credits),
@@ -250,12 +251,6 @@ class _ZakatCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              trf('نقود الصندوق ({0}) خارج هذا الحساب بحسب الطريقة المختارة.',
-                  [money(s.cash)]),
-              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 6),
             Text(
               tr('هذا حساب تقريبي معين على التقدير؛ الحول والنِّصاب وتفاصيل الديون المشكوك فيها تُراجَع مع أهل العلم.'),
               style: TextStyle(
