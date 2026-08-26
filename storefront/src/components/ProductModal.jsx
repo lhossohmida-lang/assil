@@ -16,12 +16,12 @@ export default function ProductModal({ product, onClose, onAdd }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto"
+        className="bg-sand-50 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="grid md:grid-cols-2 gap-4">
           <div>
-            <div className="aspect-square bg-slate-100">
+            <div className="aspect-square bg-sand-100">
               {images[imageIndex] ? (
                 <img
                   src={images[imageIndex]}
@@ -29,7 +29,7 @@ export default function ProductModal({ product, onClose, onAdd }) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full grid place-items-center text-6xl text-slate-400">
+                <div className="w-full h-full grid place-items-center text-6xl text-ink/40">
                   👔
                 </div>
               )}
@@ -56,7 +56,7 @@ export default function ProductModal({ product, onClose, onAdd }) {
               <h2 className="text-xl font-bold flex-1">{product.name}</h2>
               <button
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-700 text-2xl leading-none"
+                className="text-ink/40 hover:text-ink/80 text-2xl leading-none"
               >
                 ×
               </button>
@@ -67,7 +67,7 @@ export default function ProductModal({ product, onClose, onAdd }) {
             </p>
 
             {product.description && (
-              <p className="text-slate-600 whitespace-pre-line">
+              <p className="text-ink/70 whitespace-pre-line">
                 {product.description}
               </p>
             )}
@@ -103,8 +103,8 @@ export default function ProductModal({ product, onClose, onAdd }) {
             <button
               disabled={out}
               onClick={() => onAdd(product, { size, color, quantity })}
-              className="w-full rounded-xl bg-brand text-white py-3 font-bold
-                         hover:bg-brand-dark transition disabled:bg-slate-300"
+              className="w-full rounded-xl bg-brand text-sand-50 py-3 font-bold
+                         hover:bg-brand-dark transition disabled:bg-sand-300"
             >
               {out ? 'غير متوفّر حالياً' : 'أضف إلى السلة'}
             </button>
@@ -127,7 +127,7 @@ function Options({ label, values, selected, onSelect }) {
             className={`rounded-lg px-3 py-1.5 border-2 text-sm font-semibold transition ${
               selected === v
                 ? 'border-brand bg-brand/10 text-brand'
-                : 'border-slate-200 hover:border-slate-400'
+                : 'border-sand-200 hover:border-slate-400'
             }`}
           >
             {v}
@@ -142,7 +142,7 @@ function RoundButton({ onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200
+      className="w-9 h-9 rounded-full bg-sand-100 hover:bg-sand-200
                  text-xl font-bold leading-none"
     >
       {children}

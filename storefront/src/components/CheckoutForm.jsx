@@ -59,20 +59,20 @@ export default function CheckoutForm({ items, onBack, onSubmit }) {
     <div className="fixed inset-0 z-50 bg-black/50 overflow-auto p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl max-w-lg mx-auto my-8 p-5 space-y-4"
+        className="bg-sand-50 rounded-2xl max-w-lg mx-auto my-8 p-5 space-y-4"
       >
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="text-slate-500 hover:text-slate-800"
+            className="text-ink/55 hover:text-ink"
           >
             ← رجوع
           </button>
           <h2 className="text-xl font-bold flex-1 text-center">إتمام الطلب</h2>
         </div>
 
-        <div className="rounded-xl bg-slate-50 p-3 space-y-1 text-sm">
+        <div className="rounded-xl bg-sand-50 p-3 space-y-1 text-sm">
           {items.map((item) => (
             <div
               key={`${item.id}|${item.size}|${item.color}`}
@@ -85,7 +85,7 @@ export default function CheckoutForm({ items, onBack, onSubmit }) {
               <span className="shrink-0">{money(item.price * item.quantity)}</span>
             </div>
           ))}
-          <div className="flex justify-between font-bold pt-2 border-t border-slate-200">
+          <div className="flex justify-between font-bold pt-2 border-t border-sand-200">
             <span>المجموع</span>
             <span className="text-brand">{money(total)}</span>
           </div>
@@ -160,7 +160,7 @@ export default function CheckoutForm({ items, onBack, onSubmit }) {
               className={`flex-1 rounded-lg py-2 text-sm font-semibold border-2 transition ${
                 type === value
                   ? 'border-brand bg-brand/10 text-brand'
-                  : 'border-slate-200'
+                  : 'border-sand-200'
               }`}
             >
               {label}
@@ -177,13 +177,13 @@ export default function CheckoutForm({ items, onBack, onSubmit }) {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-xl bg-brand text-white py-3 font-bold
-                     hover:bg-brand-dark transition disabled:bg-slate-300"
+          className="w-full rounded-xl bg-brand text-sand-50 py-3 font-bold
+                     hover:bg-brand-dark transition disabled:bg-sand-300"
         >
           {busy ? 'جارٍ الإرسال...' : 'إرسال الطلب'}
         </button>
 
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-ink/55 text-center">
           سنتصل بك لتأكيد الطلب وسعر التوصيل. لا حاجة للدفع الآن.
         </p>
       </form>
@@ -192,7 +192,7 @@ export default function CheckoutForm({ items, onBack, onSubmit }) {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 ' +
+  'w-full rounded-lg border border-sand-300 px-3 py-2 ' +
   'focus:outline-none focus:ring-2 focus:ring-brand/40';
 
 function Field({ label, children }) {

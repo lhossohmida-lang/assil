@@ -18,7 +18,7 @@ export default function CategoryGrid({ categories, onPick }) {
             key={category.name}
             onClick={() => onPick(category.name)}
             className="group relative overflow-hidden rounded-2xl border
-                       border-slate-200 bg-white aspect-[4/3]
+                       border-sand-200 bg-sand-50 aspect-[4/3]
                        hover:shadow-lg hover:-translate-y-0.5 transition"
           >
             {category.image ? (
@@ -42,7 +42,7 @@ export default function CategoryGrid({ categories, onPick }) {
             {/* تدرّج داكن خلف الاسم: صورة فاتحة تبتلع نصّاً أبيض بلا هذا. */}
             <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t
                              from-black/70 to-transparent px-3 py-2
-                             text-white font-bold text-sm text-right">
+                             text-sand-50 font-bold text-sm text-right">
               {category.name}
             </span>
           </button>
@@ -64,15 +64,15 @@ export function FeaturedRow({ products, onOpen }) {
           <button
             key={product.id}
             onClick={() => onOpen(product)}
-            className="text-right bg-white rounded-xl border border-brand/30
+            className="text-right bg-sand-50 rounded-xl border border-brand/30
                        overflow-hidden hover:shadow-lg hover:-translate-y-0.5
                        transition group relative"
           >
-            <span className="absolute top-2 left-2 z-10 bg-brand text-white
+            <span className="absolute top-2 left-2 z-10 bg-brand text-sand-50
                              text-[10px] px-2 py-0.5 rounded-full">
               مختار
             </span>
-            <div className="aspect-square bg-slate-100 overflow-hidden">
+            <div className="aspect-square bg-sand-100 overflow-hidden">
               {product.images?.[0] ? (
                 <img
                   src={product.images[0]}
@@ -81,7 +81,7 @@ export function FeaturedRow({ products, onOpen }) {
                   className="w-full h-full object-cover group-hover:scale-105 transition"
                 />
               ) : (
-                <div className="w-full h-full grid place-items-center text-slate-400 text-4xl">
+                <div className="w-full h-full grid place-items-center text-ink/40 text-4xl">
                   👔
                 </div>
               )}

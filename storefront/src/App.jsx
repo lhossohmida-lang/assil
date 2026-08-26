@@ -5,6 +5,8 @@ import ProductModal from './components/ProductModal.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
 import CheckoutForm from './components/CheckoutForm.jsx';
 import SocialLinks, { SocialQrCodes } from './components/SocialLinks.jsx';
+import LandingPage from './components/LandingPage.jsx';
+import { useLang } from './i18n.js';
 import CategoryGrid, { FeaturedRow } from './components/CategoryGrid.jsx';
 
 // قيم افتراضية تظهر قبل أن يحفظ صاحب المحل هويّته من الإعدادات،
@@ -19,6 +21,38 @@ export default function App() {
   const [error, setError] = useState(null);
 
   const [info, setInfo] = useState({});
+  const [t, lang, setLang] = useLang();
+
+  // صفحة الهبوط أوّلاً، والمتجر بعد الضغط على «ادخل إلى المتجر».
+  //
+  // القرار محفوظ للجلسة فقط (لا localStorage): الزائر العائد في اليوم
+  // نفسه لا يُجبَر على أربعة مشاهد مرّة أخرى، لكن الزيارة الجديدة تبدأ
+  // من الواجهة لأنها هي هوية المحل.
+  const [view, setView] = useState(() => {
+    try {
+      return sessionStorage.getItem('asil.view') === 'shop' ? 'shop' : 'landing';
+    } catch {
+      return 'landing';
+    }
+  });
+
+  function openShop() {
+    try {
+      sessionStorage.setItem('asil.view', 'shop');
+    } catch {
+      // نافذة خاصة — يبقى الاختيار في الذاكرة وحدها.
+    }
+    setView('shop');
+  }
+
+  function openLanding() {
+    try {
+      sessionStorage.removeItem('asil.view');
+    } catch {
+      // تجاهُل مقصود.
+    }
+    setView('landing');
+  }
 
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
@@ -170,13 +204,30 @@ export default function App() {
     return orderNumber;
   }
 
+  if (view === 'landing' && STORE_ID) {
+    return (
+      <>
+        <LanguageToggle lang={lang} setLang={setLang} floating />
+        <LandingPage
+          t={t}
+          storeName={storeName}
+          tagline={tagline}
+          phone={phone}
+          facebookUrl={facebookUrl}
+          instagramUrl={instagramUrl}
+          onEnterShop={openShop}
+        />
+      </>
+    );
+  }
+
   if (!STORE_ID) {
     return (
       <div className="min-h-screen grid place-items-center p-6 text-center">
         <div className="max-w-md space-y-3">
           <h1 className="text-2xl font-bold">المتجر غير مهيّأ</h1>
-          <p className="text-slate-600">
-            اضبط <code className="bg-slate-200 px-1 rounded">VITE_STORE_ID</code>{' '}
+          <p className="text-ink/70">
+            اضبط <code className="bg-sand-200 px-1 rounded">VITE_STORE_ID</code>{' '}
             بمعرّف المتجر (uid صاحب المحل) في متغيّرات البيئة، ثم أعد البناء.
           </p>
         </div>
@@ -186,7 +237,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+      <header className="sticky top-0 z-20 bg-sand-50/95 backdrop-blur border-b border-sand-200">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <a href="#top" className="flex items-center gap-2 shrink-0">
             <img
@@ -204,25 +255,35 @@ export default function App() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث عن منتج..."
-            className="flex-1 min-w-0 rounded-lg border border-slate-300 px-3 py-2
+            placeholder={t.searchPlaceholder}
+            className="flex-1 min-w-0 rounded-lg border border-sand-300 px-3 py-2
                        focus:outline-none focus:ring-2 focus:ring-brand/40"
           />
 
           <button
             onClick={() => setCartOpen(true)}
-            className="relative shrink-0 rounded-lg bg-brand text-white px-4 py-2
+            className="relative shrink-0 rounded-lg bg-brand text-sand-50 px-4 py-2
                        font-semibold hover:bg-brand-dark transition"
           >
-            السلة
+            {t.cart}
             {cartCount > 0 && (
               <span
-                className="absolute -top-2 -left-2 bg-rose-600 text-white text-xs
+                className="absolute -top-2 -left-2 bg-rose-600 text-sand-50 text-xs
                            rounded-full w-6 h-6 grid place-items-center"
               >
                 {cartCount}
               </span>
             )}
+          </button>
+
+          <LanguageToggle lang={lang} setLang={setLang} />
+
+          <button
+            onClick={openLanding}
+            className="hidden sm:block shrink-0 text-sm font-semibold
+                       text-ink/60 hover:text-ink transition"
+          >
+            {t.home}
           </button>
 
           <div className="hidden md:flex">
@@ -237,7 +298,7 @@ export default function App() {
         {categories.length > 0 && (
           <div className="max-w-6xl mx-auto px-4 pb-3 flex gap-2 overflow-x-auto">
             <Chip active={!category} onClick={() => setCategory('')}>
-              الكل
+              {t.all}
             </Chip>
             {categories.map((c) => (
               <Chip
@@ -257,8 +318,8 @@ export default function App() {
             حينها يعرف ما يريد ولا يحتاج تعريفاً بالمحل. */}
         {showHome && (
           <section
-            className="mb-6 rounded-2xl overflow-hidden border border-slate-200
-                       bg-gradient-to-l from-brand/10 via-white to-brand-accent/10"
+            className="mb-6 rounded-2xl overflow-hidden border border-sand-200
+                       bg-gradient-to-l from-brand/10 via-sand-50 to-brand-accent/10"
           >
             <div className="px-6 py-8 md:py-10 flex items-center gap-6">
               <img
@@ -267,16 +328,18 @@ export default function App() {
                 className="hidden sm:block w-24 h-24 md:w-28 md:h-28 opacity-90"
               />
               <div className="min-w-0">
-                <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
+                <h2 className="text-2xl md:text-3xl font-bold text-ink">
                   {storeName}
                 </h2>
-                <p className="mt-2 text-slate-600 leading-relaxed">{tagline}</p>
+                <p className="mt-2 text-ink/70 leading-relaxed">
+                  {t.lang === 'ar' ? tagline : t.welcomeBody}
+                </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                  <Feature>قصّات محتشمة</Feature>
-                  <Feature>أقمشة مختارة</Feature>
-                  <Feature>توصيل لكل الولايات</Feature>
-                  <Feature>الدفع عند الاستلام</Feature>
+                  <Feature>{t.perkCuts}</Feature>
+                  <Feature>{t.perkFabric}</Feature>
+                  <Feature>{t.perkDelivery}</Feature>
+                  <Feature>{t.perkCod}</Feature>
                 </div>
 
                 <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -288,7 +351,7 @@ export default function App() {
                     <a
                       href={`tel:${phone}`}
                       className="rounded-lg border border-brand text-brand px-4 py-2
-                                 font-semibold hover:bg-brand hover:text-white transition"
+                                 font-semibold hover:bg-brand hover:text-sand-50 transition"
                       dir="ltr"
                     >
                       {phone}
@@ -303,31 +366,33 @@ export default function App() {
         {placed && (
           <div className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 p-5 text-center">
             <p className="text-lg font-bold text-emerald-800">
-              وصلنا طلبك — رقمه {placed}
+              {t.orderPlaced} {placed}
             </p>
             <p className="text-emerald-700 mt-1">
-              سنتصل بك لتأكيد الطلب والتوصيل.
+              {t.orderNote}
             </p>
             <button
               onClick={() => setPlaced(null)}
               className="mt-3 text-sm text-emerald-700 underline"
             >
-              متابعة التسوّق
+              {t.keepShopping}
             </button>
           </div>
         )}
 
-        {loading && <p className="text-center py-16 text-slate-500">جارٍ التحميل...</p>}
+        {loading && (
+          <p className="text-center py-16 text-ink/55">{t.loading}</p>
+        )}
 
         {error && (
           <p className="text-center py-16 text-rose-600">
-            تعذّر تحميل المنتجات: {error}
+            {t.loadFailed} {error}
           </p>
         )}
 
         {!loading && !error && visible.length === 0 && (
-          <p className="text-center py-16 text-slate-500">
-            {query || category ? 'لا نتائج لبحثك' : 'لا منتجات معروضة حالياً'}
+          <p className="text-center py-16 text-ink/55">
+            {query || category ? t.noResults : t.noProducts}
           </p>
         )}
 
@@ -346,12 +411,17 @@ export default function App() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {visible.map((p) => (
-            <ProductCard key={p.id} product={p} onOpen={() => setSelected(p)} />
+            <ProductCard
+              key={p.id}
+              product={p}
+              outOfStockLabel={t.outOfStock}
+              onOpen={() => setSelected(p)}
+            />
           ))}
         </div>
       </main>
 
-      <footer className="border-t border-slate-200 bg-white mt-6">
+      <footer className="border-t border-sand-200 bg-sand-50 mt-6">
         <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
           <SocialQrCodes
             facebookUrl={facebookUrl}
@@ -360,10 +430,8 @@ export default function App() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-right">
-              <p className="font-bold text-slate-800">{storeName}</p>
-              <p className="text-sm text-slate-500">
-                الأسعار بالدينار الجزائري
-              </p>
+              <p className="font-bold text-ink">{storeName}</p>
+              <p className="text-sm text-ink/55">{t.priceNote}</p>
               {phone && (
                 <a
                   href={`tel:${phone}`}
@@ -412,8 +480,8 @@ export default function App() {
 
 function Feature({ children }) {
   return (
-    <span className="rounded-full bg-white/80 border border-slate-200 px-3 py-1
-                     text-slate-700">
+    <span className="rounded-full bg-sand-50/80 border border-sand-200 px-3 py-1
+                     text-ink/80">
       ✓ {children}
     </span>
   );
@@ -425,11 +493,43 @@ function Chip({ active, onClick, children }) {
       onClick={onClick}
       className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
         active
-          ? 'bg-brand text-white'
-          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          ? 'bg-brand text-sand-50'
+          : 'bg-sand-100 text-ink/80 hover:bg-sand-200'
       }`}
     >
       {children}
     </button>
+  );
+}
+
+
+/// مبدّل اللغة — عربية/إنجليزية.
+///
+/// زرّان ظاهران لا قائمة منسدلة: خياران فقط، والقائمة تخفي أحدهما خلف
+/// نقرة بلا داعٍ.
+function LanguageToggle({ lang, setLang, floating = false }) {
+  return (
+    <div
+      className={
+        floating
+          ? 'fixed top-4 start-4 z-40 flex rounded-full bg-sand-50/90 backdrop-blur border border-sand-300 overflow-hidden shadow-sm'
+          : 'flex rounded-full border border-sand-300 overflow-hidden shrink-0'
+      }
+    >
+      {['ar', 'en'].map((code) => (
+        <button
+          key={code}
+          onClick={() => setLang(code)}
+          aria-label={code === 'ar' ? 'العربية' : 'English'}
+          className={`px-3 py-1.5 text-xs font-bold transition ${
+            lang === code
+              ? 'bg-ink text-sand-50'
+              : 'text-ink/60 hover:text-ink'
+          }`}
+        >
+          {code === 'ar' ? 'ع' : 'EN'}
+        </button>
+      ))}
+    </div>
   );
 }

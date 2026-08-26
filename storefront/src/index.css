@@ -3,5 +3,10 @@
 @tailwind utilities;
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-sand-50 text-ink;
+}
+
+/* التمرير الملتقط لصفحة الهبوط: كل لمسة تنقل مشهداً كاملاً. */
+html {
+  scroll-behavior: smooth;
 }
