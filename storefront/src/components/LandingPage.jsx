@@ -3,21 +3,45 @@ import SocialLinks from './SocialLinks.jsx';
 
 /// أقسام صفحة الهبوط الأربعة.
 ///
-/// كل قسم يملأ الشاشة ويلتقط التمرير (`snap`)، فكل لمسة تنقل إلى المشهد
-/// التالي بنصّه وفيديوه — لا تمرير متصل يقرأ نصفَ قسمين معاً.
+/// كل قسم له فيديوان: واحد للهاتف وآخر للحاسوب.
+/// المتصفّح يختار تلقائياً عبر عنصر <source media="..."> الذي يُقيّم
+/// قبل أن يبدأ التنزيل — بدون JavaScript وبدون استهلاك باندويدث.
 const SECTIONS = [
-  { id: 'welcome', video: '/videos/1-welcome.mp4', title: 'welcomeTitle', body: 'welcomeBody' },
-  { id: 'kinds', video: '/videos/2-categories.mp4', title: 'categoriesTitle', body: 'categoriesBody' },
-  { id: 'fabric', video: '/videos/3-fabric.mp4', title: 'fabricTitle', body: 'fabricBody' },
-  { id: 'contact', video: '/videos/4-contact.mp4', title: 'contactTitle', body: 'contactBody' },
+  {
+    id: 'welcome',
+    videoMobile: '/videos/1-mobile.mp4',
+    videoDesktop: '/videos/1-desktop.mp4',
+    title: 'welcomeTitle',
+    body: 'welcomeBody',
+  },
+  {
+    id: 'kinds',
+    videoMobile: '/videos/2-mobile.mp4',
+    videoDesktop: '/videos/2-desktop.mp4',
+    title: 'categoriesTitle',
+    body: 'categoriesBody',
+  },
+  {
+    id: 'fabric',
+    videoMobile: '/videos/3-mobile.mp4',
+    videoDesktop: '/videos/3-desktop.mp4',
+    title: 'fabricTitle',
+    body: 'fabricBody',
+  },
+  {
+    id: 'contact',
+    videoMobile: '/videos/4-mobile.mp4',
+    videoDesktop: '/videos/4-desktop.mp4',
+    title: 'contactTitle',
+    body: 'contactBody',
+  },
 ];
 
-/// خلفية القسم: فيديو إن وُجد، وإلا تدرّج بيج ساكن.
+/// خلفية القسم: فيديو مزدوج (موبايل + ديسكتوب) مع سقوط أنيق.
 ///
-/// ⚠️ السقوط إلى التدرّج ليس ترفاً: الفيديوهات تُضاف لاحقاً في
-/// `public/videos/`، وبدون هذا السقوط تظهر الصفحة أربعة مربّعات سوداء
-/// فارغة. كما أن `onError` يلتقط شبكةً بطيئة أو ملفاً تالفاً.
-function SectionBackground({ src, active, index }) {
+/// ⚠️ السقوط إلى التدرّج ليس ترفاً: إن تعذّر تحميل الفيديو (شبكة بطيئة
+/// أو ملف ناقص) تظهر خلفية بيج بدل مربّع أسود فارغ.
+function SectionBackground({ videoMobile, videoDesktop, active, index }) {
   const ref = useRef(null);
   const [failed, setFailed] = useState(false);
 
@@ -29,11 +53,25 @@ function SectionBackground({ src, active, index }) {
     if (active) {
       el.play().catch(() => {
         // التشغيل التلقائي مرفوض (سياسة المتصفّح) — الخلفية تبقى ساكنة
-        // على أول إطار، وهو مقبول.
+        // على أول إطار، وهو مقبول تماماً.
       });
     } else {
       el.pause();
     }
+  }, [active]);
+
+  // عند تغيير حجم الشاشة يتغيّر مصدر الفيديو — نُعيد التشغيل من الصفر
+  // حتى لا يبقى إطار من الفيديو القديم.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    function onResize() {
+      el.load();
+      el.play().catch(() => {});
+    }
+    mq.addEventListener('change', onResize);
+    return () => mq.removeEventListener('change', onResize);
   }, [active]);
 
   // تدرّجات بيج متدرّجة العمق حسب ترتيب القسم.
@@ -54,19 +92,32 @@ function SectionBackground({ src, active, index }) {
 
   return (
     <>
+      {/* طبقة التدرّج تظهر أثناء التحميل وعند الفشل */}
       <div
         className={`absolute inset-0 bg-gradient-to-br ${fallbacks[index % 4]}`}
       />
+      {/*
+        عنصر <video> واحد بمصدرين:
+        - الأول للهاتف (عرض < 768 px)
+        - الثاني للحاسوب (عرض ≥ 768 px)
+        المتصفّح يختار المصدر الأنسب تلقائياً قبل التنزيل.
+        ملاحظة: media في <source> يُدعم في Chrome ≥ 38 و Safari ≥ 9.
+      */}
       <video
         ref={ref}
-        src={src}
         muted
         loop
         playsInline
         preload="metadata"
         onError={() => setFailed(true)}
         className="absolute inset-0 w-full h-full object-cover"
-      />
+      >
+        {/* الهاتف أولاً: المتصفّح يفحصها بالترتيب */}
+        <source src={videoMobile} media="(max-width: 767px)" type="video/mp4" />
+        <source src={videoDesktop} media="(min-width: 768px)" type="video/mp4" />
+        {/* سقوط آمن للمتصفّحات القديمة */}
+        <source src={videoDesktop} type="video/mp4" />
+      </video>
     </>
   );
 }
@@ -136,7 +187,8 @@ export default function LandingPage({
                      flex items-center justify-center"
         >
           <SectionBackground
-            src={section.video}
+            videoMobile={section.videoMobile}
+            videoDesktop={section.videoDesktop}
             active={index === active}
             index={index}
           />
