@@ -4,8 +4,6 @@ import SocialLinks from './SocialLinks.jsx';
 /// أقسام صفحة الهبوط الأربعة.
 ///
 /// كل قسم له فيديوان: واحد للهاتف وآخر للحاسوب.
-/// المتصفّح يختار تلقائياً عبر عنصر <source media="..."> الذي يُقيّم
-/// قبل أن يبدأ التنزيل — بدون JavaScript وبدون استهلاك باندويدث.
 const SECTIONS = [
   {
     id: 'welcome',
@@ -37,44 +35,57 @@ const SECTIONS = [
   },
 ];
 
-/// خلفية القسم: فيديو مزدوج (موبايل + ديسكتوب) مع سقوط أنيق.
+/// نقرأ حجم الشاشة مرة واحدة لتحديد أي فيديو نحمّل.
+/// useMediaQuery المدمجة — بدون مكتبة خارجية.
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia('(min-width: 768px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isDesktop;
+}
+
+/// خلفية القسم: فيديو يُختار بـ JavaScript حسب حجم الشاشة.
 ///
-/// ⚠️ السقوط إلى التدرّج ليس ترفاً: إن تعذّر تحميل الفيديو (شبكة بطيئة
-/// أو ملف ناقص) تظهر خلفية بيج بدل مربّع أسود فارغ.
+/// ⚠️ لا نستخدم <source media> داخل <video> لأن Chrome يتجاهل
+/// خاصية media في <source> ويأخذ أول مصدر دائماً بغض النظر.
+/// الحل الموثوق: تعيين src مباشرة على عنصر الفيديو.
 function SectionBackground({ videoMobile, videoDesktop, active, index }) {
   const ref = useRef(null);
   const [failed, setFailed] = useState(false);
+  const isDesktop = useIsDesktop();
 
-  // الفيديو يعمل في القسم الظاهر وحده: تشغيل أربعة معاً يستهلك البطارية
-  // ويخنق الهاتف بلا أن يرى الزائر إلا واحداً.
+  // عند تغيير حجم الشاشة أو تحديد الفيديو المناسب: نحمّل المصدر الصحيح
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || failed) return;
+    const src = isDesktop ? videoDesktop : videoMobile;
+    // لا نعيد التحميل إذا كان المصدر نفسه (يتجنب وميض الشاشة)
+    if (!el.src.endsWith(src.replace('/videos/', ''))) {
+      el.src = src;
+      el.load();
+    }
+  }, [isDesktop, videoMobile, videoDesktop, failed]);
+
+  // تشغيل/إيقاف حسب القسم الظاهر
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || failed) return;
     if (active) {
       el.play().catch(() => {
-        // التشغيل التلقائي مرفوض (سياسة المتصفّح) — الخلفية تبقى ساكنة
-        // على أول إطار، وهو مقبول تماماً.
+        // التشغيل التلقائي مرفوض — الخلفية تبقى ساكنة على أول إطار
       });
     } else {
       el.pause();
     }
-  }, [active]);
+  }, [active, failed]);
 
-  // عند تغيير حجم الشاشة يتغيّر مصدر الفيديو — نُعيد التشغيل من الصفر
-  // حتى لا يبقى إطار من الفيديو القديم.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !active) return;
-    const mq = window.matchMedia('(min-width: 768px)');
-    function onResize() {
-      el.load();
-      el.play().catch(() => {});
-    }
-    mq.addEventListener('change', onResize);
-    return () => mq.removeEventListener('change', onResize);
-  }, [active]);
-
-  // تدرّجات بيج متدرّجة العمق حسب ترتيب القسم.
+  // تدرّجات بيج احتياطية لكل قسم
   const fallbacks = [
     'from-sand-100 via-sand-50 to-sand-200',
     'from-sand-200 via-sand-100 to-sand-50',
@@ -82,42 +93,26 @@ function SectionBackground({ videoMobile, videoDesktop, active, index }) {
     'from-sand-200 via-sand-50 to-sand-300',
   ];
 
-  if (failed) {
-    return (
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${fallbacks[index % 4]}`}
-      />
-    );
-  }
-
   return (
     <>
-      {/* طبقة التدرّج تظهر أثناء التحميل وعند الفشل */}
+      {/* طبقة التدرّج: تظهر أثناء التحميل وعند فشل الفيديو */}
       <div
         className={`absolute inset-0 bg-gradient-to-br ${fallbacks[index % 4]}`}
       />
-      {/*
-        عنصر <video> واحد بمصدرين:
-        - الأول للهاتف (عرض < 768 px)
-        - الثاني للحاسوب (عرض ≥ 768 px)
-        المتصفّح يختار المصدر الأنسب تلقائياً قبل التنزيل.
-        ملاحظة: media في <source> يُدعم في Chrome ≥ 38 و Safari ≥ 9.
-      */}
-      <video
-        ref={ref}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        onError={() => setFailed(true)}
-        className="absolute inset-0 w-full h-full object-cover"
-      >
-        {/* الهاتف أولاً: المتصفّح يفحصها بالترتيب */}
-        <source src={videoMobile} media="(max-width: 767px)" type="video/mp4" />
-        <source src={videoDesktop} media="(min-width: 768px)" type="video/mp4" />
-        {/* سقوط آمن للمتصفّحات القديمة */}
-        <source src={videoDesktop} type="video/mp4" />
-      </video>
+
+      {/* الفيديو — يُخفى عند الفشل ويُترك التدرّج وحده */}
+      {!failed && (
+        <video
+          ref={ref}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onError={() => setFailed(true)}
+          src={isDesktop ? videoDesktop : videoMobile}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
     </>
   );
 }
@@ -209,9 +204,7 @@ export default function LandingPage({
               {index === 0 ? `${t.welcomeTitle}` : t[section.title]}
             </h2>
 
-            {/* جملة صاحب المحل تظهر في المشهد الأول **بالعربية وحدها**:
-                هي نصّه هو ولا ترجمة لها، وعرضها داخل صفحة إنجليزية
-                يجعل المشهد نصفين بلغتين. */}
+            {/* جملة صاحب المحل تظهر في المشهد الأول **بالعربية وحدها** */}
             <p className="mt-4 text-base md:text-lg text-ink/70 leading-relaxed">
               {index === 0 && tagline && t.lang === 'ar'
                 ? tagline
