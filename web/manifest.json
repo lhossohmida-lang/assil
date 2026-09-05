@@ -1,12 +1,13 @@
 {
-    "name": "kmsan",
-    "short_name": "kmsan",
-    "start_url": ".",
+    "name": "KMSAN — نظام الإدارة",
+    "short_name": "KMSAN",
+    "start_url": "./",
+    "scope": "./",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FBF7F0",
+    "theme_color": "#3A3129",
+    "description": "نظام إدارة المخزون ونقطة البيع KMSAN",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
