@@ -188,8 +188,6 @@ export default function LandingPage({
             index={index}
           />
 
-          {/* حجاب بيج شفّاف: النصّ الداكن يبقى مقروءاً فوق أي لقطة فيديو */}
-          <div className="absolute inset-0 bg-sand-50/70 backdrop-blur-[2px]" />
 
           <div className="relative z-10 px-6 max-w-2xl text-center">
             {index === 0 && (

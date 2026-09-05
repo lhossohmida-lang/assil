@@ -1,0 +1,77 @@
+workflows:
+  # ─────────────────────────────────────────────
+  # بناء iOS IPA على Mac Cloud — Codemagic
+  # ─────────────────────────────────────────────
+  ios-release:
+    name: iOS Release (IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: 3.44.4
+      xcode: latest
+      cocoapods: default
+
+      # متغيّرات سرية — تُضاف من لوحة Codemagic (لا تُكتب هنا)
+      vars:
+        BUNDLE_ID: "com.kmsan.kmsan"          # غيّره ليطابق Bundle ID في Xcode
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
+
+      # التوقيع التلقائي عبر App Store Connect API
+      ios_signing:
+        distribution_type: ad_hoc       # ad_hoc = للتوزيع المباشر على الهاتف
+        # غيّره إلى app_store إن أردت نشره في App Store
+        bundle_identifier: com.kmsan.kmsan
+
+    scripts:
+      - name: Set Bundle ID
+        script: |
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleIdentifier com.kmsan.kmsan" \
+            ios/Runner/Info.plist
+
+      - name: Flutter pub get
+        script: flutter pub get
+
+      - name: Build iOS (no codesign — للتوزيع اليدوي)
+        script: |
+          flutter build ios --release --no-codesign
+          # Codemagic يُوقّع تلقائياً بعد هذا عبر ios_signing أعلاه
+
+    artifacts:
+      - build/ios/ipa/*.ipa               # ملف IPA الجاهز للتثبيت
+      - /tmp/xcodebuild_logs/*.log        # سجلات للتشخيص عند الخطأ
+
+    publishing:
+      email:
+        recipients:
+          - your_email@example.com        # غيّر إلى بريدك
+
+  # ─────────────────────────────────────────────
+  # بناء Android APK — احتياطي على Codemagic
+  # ─────────────────────────────────────────────
+  android-release:
+    name: Android Release (APK)
+    max_build_duration: 30
+    instance_type: linux_x2
+
+    environment:
+      flutter: 3.44.4
+
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+
+      - name: Build APK
+        script: flutter build apk --release --split-per-abi
+
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - your_email@example.com
