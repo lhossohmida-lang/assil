@@ -475,13 +475,10 @@ class SalesRepository {
       }
     }
 
-    // نحذف فقط حركات الدخل (income) وليس الإرجاع (saleReturn):
-    // الإرجاع مالٌ خرج من الدرج فعلاً وأثره في cashOut صحيح.
+    // نحذف كل حركات الصندوق المرتبطة بالفاتورة (الدخل والإرجاع معاً):
+    // حذف الفاتورة يلغي وجودها وتأثيرها كاملاً من الصندوق والسجل.
     final seen = <String>{};
     for (final doc in [...linked.docs, ...legacy.docs]) {
-      // تخطّ حركات الإرجاع — المال خرج فعلاً ولا يُعاد للصندوق عند الحذف.
-      final typeStr = (doc.data() as Map<String, dynamic>?)?['type'] as String? ?? '';
-      if (typeStr == 'saleReturn') continue;
       if (seen.add(doc.id)) batch.delete(doc.reference);
     }
 

@@ -146,6 +146,29 @@ class CashboxRepository {
     final batch = _db.batch();
     batch.delete(transactions.doc(tx.id));
 
+    // إذا كانت الحركة إرجاع مبيعات، نحذف أيضاً أي حركة دخل مرتبطة بهذه البيعة
+    // حتى لا يتبقى دخل وهمي بلا فاتورة يُضاف إلى الصندوق وللاروسات.
+    if (tx.isSaleReturn) {
+      if (tx.saleId.isNotEmpty) {
+        final linkedIncomes = await transactions
+            .where('saleId', isEqualTo: tx.saleId)
+            .get();
+        for (final doc in linkedIncomes.docs) {
+          batch.delete(doc.reference);
+        }
+      }
+      final invoiceMatch = RegExp(r'من\s+([A-Za-z0-9_-]+)').firstMatch(tx.note);
+      if (invoiceMatch != null) {
+        final invNum = invoiceMatch.group(1)!;
+        final legacyIncomes = await transactions
+            .where('note', isEqualTo: 'بيع $invNum')
+            .get();
+        for (final doc in legacyIncomes.docs) {
+          batch.delete(doc.reference);
+        }
+      }
+    }
+
     if (tx.accountId.isNotEmpty) {
       batch.update(accounts.doc(tx.accountId), {
         'totalExpenses': FieldValue.increment(-tx.amount),

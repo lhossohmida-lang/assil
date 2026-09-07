@@ -136,14 +136,18 @@ final ledgerProvider = Provider<List<LedgerEntry>>((ref) {
   final txs = ref.watch(periodTransactionsProvider);
   final buys = ref.watch(periodPurchasesProvider);
 
+  final saleIds = {for (final s in sales) s.id};
+
   final entries = <LedgerEntry>[
     for (final s in sales) LedgerEntry.sale(s),
     for (final b in buys) LedgerEntry.purchase(b),
     for (final t in txs)
-      // حركة الدخل مخفيّة لأن فاتورتها معروضة، وحركة الشراء مخفيّة
-      // لأن **فاتورة الشراء نفسها** معروضة — وعرضهما معاً يُظهر كل
-      // عملية سطرين. وفاتورة الشراء أصدق: تظهر ولو لم يُدفع شيء.
-      if (t.type != CashboxType.income && t.type != CashboxType.purchase)
+      // حركة الشراء مخفية لأن فاتورة الشراء نفسها معروضة.
+      // حركة الدخل مخفية فقط إذا كانت فاتورتها معروضة بالفعل في قائمة المبيعات.
+      // أما إذا حُذفت الفاتورة أو أُرجعت بالكامل وبقيت حركة الدخل،
+      // فتظهر في السجل حتى لا يكون هناك دخل خفي يُربك الحسابات ويمكن حذفه.
+      if (t.type != CashboxType.purchase &&
+          !(t.type == CashboxType.income && saleIds.contains(t.saleId)))
         LedgerEntry.transaction(t),
   ];
   entries.sort((a, b) => b.at.compareTo(a.at));
