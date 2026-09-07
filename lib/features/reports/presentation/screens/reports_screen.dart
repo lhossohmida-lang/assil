@@ -451,16 +451,39 @@ class _ReportsMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<int>(
-      tooltip: tr('حذف السجلات القديمة'),
+    return PopupMenuButton<String>(
+      tooltip: tr('خيارات السجل'),
       icon: const Icon(Icons.more_vert),
-      onSelected: (months) => _purge(context, ref, months),
+      onSelected: (value) {
+        if (value == 'reset') {
+          _purgeAll(context, ref);
+        } else {
+          _purge(context, ref, int.parse(value));
+        }
+      },
       itemBuilder: (_) => [
-        PopupMenuItem(value: 0, enabled: false, child: Text(tr('حذف الأقدم من:'))),
-        PopupMenuItem(value: 1, child: Text(tr('شهر'))),
-        PopupMenuItem(value: 3, child: Text(tr('3 أشهر'))),
-        PopupMenuItem(value: 6, child: Text(tr('6 أشهر'))),
-        PopupMenuItem(value: 12, child: Text(tr('سنة'))),
+        PopupMenuItem(value: '0', enabled: false, child: Text(tr('حذف الأقدم من:'))),
+        PopupMenuItem(value: '1', child: Text(tr('شهر'))),
+        PopupMenuItem(value: '3', child: Text(tr('3 أشهر'))),
+        PopupMenuItem(value: '6', child: Text(tr('6 أشهر'))),
+        PopupMenuItem(value: '12', child: Text(tr('سنة'))),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'reset',
+          child: Row(
+            children: [
+              const Icon(Icons.restart_alt, color: AppTheme.danger, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                tr('إعادة تعيين جميع السجلات'),
+                style: const TextStyle(
+                  color: AppTheme.danger,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -485,7 +508,48 @@ class _ReportsMenu extends ConsumerWidget {
       if (context.mounted) showErr(context, '$e');
     }
   }
+
+  Future<void> _purgeAll(BuildContext context, WidgetRef ref) async {
+    // التحذير الأوّل — شرح الأثر
+    final first = await confirmDialog(
+      context,
+      title: tr('⚠️ إعادة تعيين جميع السجلات'),
+      message: tr(
+        'ستُحذف كل الفواتير وجميع حركات الصندوق نهائياً.\n\n'
+        '• تعود كل أرقام التقارير إلى الصفر\n'
+        '• المخزون لا يتغيّر\n'
+        '• بطاقات الزبائن والموردين لا تتأثر\n\n'
+        'هذا الإجراء لا يمكن التراجع عنه.',
+      ),
+      confirmLabel: tr('متابعة'),
+      destructive: true,
+    );
+    if (!first || !context.mounted) return;
+
+    // التأكيد الثاني — تأكيد إضافي قبل التنفيذ
+    final second = await confirmDialog(
+      context,
+      title: tr('تأكيد أخير — هل أنت متأكد؟'),
+      message: tr('سيُحذف كل السجل المحاسبي بشكل دائم ولا رجعة.\n\nاضغط «حذف الكل» للمتابعة.'),
+      confirmLabel: tr('حذف الكل'),
+      destructive: true,
+    );
+    if (!second || !context.mounted) return;
+
+    try {
+      final n = await ref.read(salesRepositoryProvider)!.purgeAll();
+      if (context.mounted) {
+        showOk(
+          context,
+          trf('تمّت إعادة التعيين — حُذف {0} سجلاً. كل الأرقام صفر الآن.', [n]),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) showErr(context, trf('تعذّرت إعادة التعيين: {0}', [e]));
+    }
+  }
 }
+
 
 /// فاتورة شراء في السجل.
 ///

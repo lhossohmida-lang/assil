@@ -3,12 +3,17 @@
 ;
 ;  الاستعمال:
 ;    1. flutter build windows --release
-;    2. افتح هذا الملف بـ Inno Setup Compiler ثم Build → Compile
+;    2. ضع vc_redist.x64.exe في مجلد installer\
+;       (حمّله من https://aka.ms/vs/17/release/vc_redist.x64.exe)
+;    3. افتح هذا الملف بـ Inno Setup Compiler ثم Build → Compile
 ;       (أو من سطر الأوامر: ISCC.exe windows_setup.iss)
-;    3. المثبّت يخرج في installer\KMSAN-Setup-<الإصدار>.exe
+;    4. المثبّت يخرج في installer\KMSAN-Setup-<الإصدار>.exe
 ;
 ;  ⚠️ يحزم **مجلد Release كاملاً**: الـ exe وحده لا يعمل — يحتاج
 ;     flutter_windows.dll وملفات الإضافات ومجلد data (فيه الخطوط).
+;
+;  ✅ يثبّت Visual C++ Redistributable 2015-2022 تلقائياً لحل مشاكل:
+;     MSVCP140.dll و VCRUNTIME140.dll و VCRUNTIME140_1.dll
 ; ─────────────────────────────────────────────────────────────────
 
 #define AppName "KMSAN"
@@ -52,6 +57,11 @@ Source: "{#BuildDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\*"; DestDir: "{app}"; \
   Flags: ignoreversion recursesubdirs createallsubdirs
 
+; ── Visual C++ Redistributable 2015-2022 (x64) ──────────────────────────────
+; يُحزم مع المثبّت ويُشغَّل بصمت قبل الإطلاق الأول.
+; يُصلح أخطاء: MSVCP140.dll  VCRUNTIME140.dll  VCRUNTIME140_1.dll
+Source: "installer\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
@@ -59,6 +69,16 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; \
   Tasks: desktopicon
 
 [Run]
+; ── 1: تثبيت VC++ Redistributable بصمت إن لم يكن مثبّتاً بعد ──────────────
+; /install /quiet /norestart  = بلا نوافذ ولا إعادة تشغيل إجبارية.
+; المعلمة /norestart آمنة: إن احتاج النظام إعادة تشغيل يُخبر المستخدم
+;   عبر المثبّت الرئيسي بعد اكتمال [Run].
+Filename: "{tmp}\vc_redist.x64.exe"; \
+  Parameters: "/install /quiet /norestart"; \
+  StatusMsg: "تثبيت Visual C++ Redistributable..."; \
+  Flags: waituntilterminated
+
+; ── 2: إطلاق التطبيق بعد التثبيت ───────────────────────────────────────────
 Filename: "{app}\{#AppExeName}"; \
   Description: "{cm:LaunchProgram,{#AppName}}"; \
   Flags: nowait postinstall skipifsilent

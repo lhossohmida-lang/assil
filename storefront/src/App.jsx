@@ -336,7 +336,6 @@ export default function App() {
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                  <Feature>{t.perkCuts}</Feature>
                   <Feature>{t.perkFabric}</Feature>
                   <Feature>{t.perkDelivery}</Feature>
                   <Feature>{t.perkCod}</Feature>

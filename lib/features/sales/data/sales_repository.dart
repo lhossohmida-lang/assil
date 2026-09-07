@@ -414,6 +414,11 @@ class SalesRepository {
   ///
   /// ⚠️ **كل القراءات قبل الـ batch**: الاستعلام داخل دفعة كتابة لا يعمل
   /// على الويب ويرمي استثناءً غامضاً.
+  ///
+  /// ⚠️ حركات الإرجاع (`saleReturn`) **لا تُحذف** عمداً:
+  /// المال خرج من الدرج فعلاً عند ردّ البضاعة للزبون، وهو ينعكس في
+  /// `cashOut` بصورة صحيحة. حذفها مع الفاتورة سيجعل الصندوق يبدو
+  /// أكبر مما هو، ويُضيف قيمة البيع مرّة ثانية للفائدة بعد المصاريف.
   Future<void> deleteSale(
     Sale sale, {
     Map<String, Product> productLookup = const {},
@@ -424,7 +429,7 @@ class SalesRepository {
     final linked = await cashbox.where('saleId', isEqualTo: sale.id).get();
 
     // حركات قديمة سُجّلت قبل وجود حقل saleId — نتعرّف عليها برقم الفاتورة
-    // في الملاحظة.
+    // في الملاحظة (دخل بيع فقط — لا إرجاع).
     final legacy = await cashbox
         .where('note', isEqualTo: 'بيع ${sale.invoiceNumber}')
         .get();
@@ -470,8 +475,13 @@ class SalesRepository {
       }
     }
 
+    // نحذف فقط حركات الدخل (income) وليس الإرجاع (saleReturn):
+    // الإرجاع مالٌ خرج من الدرج فعلاً وأثره في cashOut صحيح.
     final seen = <String>{};
     for (final doc in [...linked.docs, ...legacy.docs]) {
+      // تخطّ حركات الإرجاع — المال خرج فعلاً ولا يُعاد للصندوق عند الحذف.
+      final typeStr = (doc.data() as Map<String, dynamic>?)?['type'] as String? ?? '';
+      if (typeStr == 'saleReturn') continue;
       if (seen.add(doc.id)) batch.delete(doc.reference);
     }
 
@@ -522,6 +532,29 @@ class SalesRepository {
         }
       }
       if (ops > 0) await batch.commit();
+    }
+    return deleted;
+  }
+
+  /// إعادة تعيين كاملة: حذف **جميع** الفواتير وحركات الصندوق.
+  ///
+  /// ⚠️ لا رجعة — تعود كل الأرقام إلى الصفر.
+  /// المخزون وبطاقات الزبائن والموردين **لا تتأثر**.
+  Future<int> purgeAll() async {
+    var deleted = 0;
+    for (final col in [sales, cashbox]) {
+      var snap = await col.limit(AppConstants.batchLimit).get();
+      while (snap.docs.isNotEmpty) {
+        final batch = _db.batch();
+        for (final doc in snap.docs) {
+          batch.delete(doc.reference);
+          deleted++;
+        }
+        await batch.commit();
+        // إن بقي المزيد نُعيد الاستعلام بعد حذف الدفعة السابقة.
+        if (snap.docs.length < AppConstants.batchLimit) break;
+        snap = await col.limit(AppConstants.batchLimit).get();
+      }
     }
     return deleted;
   }
