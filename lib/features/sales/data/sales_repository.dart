@@ -233,6 +233,12 @@ class SalesRepository {
     final item = sale.items[itemIndex];
     final qty = quantity.clamp(1, item.quantity);
 
+    QuerySnapshot<Map<String, dynamic>>? linkedTxs;
+    final isLastItem = qty >= item.quantity && sale.items.length == 1;
+    if (isLastItem) {
+      linkedTxs = await cashbox.where('saleId', isEqualTo: sale.id).get();
+    }
+
     final batch = _db.batch();
 
     if (item.productId.isNotEmpty) {
@@ -274,8 +280,13 @@ class SalesRepository {
     final debtDrop = debtBefore - debtAfter;
 
     if (remainingItems.isEmpty) {
-      // لم يبقَ شيء في الفاتورة ⇒ تُحذف.
+      // لم يبقَ شيء في الفاتورة ⇒ تُحذف الفاتورة وكل حركات صندوقها بالكامل
       batch.delete(sales.doc(sale.id));
+      if (linkedTxs != null) {
+        for (final doc in linkedTxs.docs) {
+          batch.delete(doc.reference);
+        }
+      }
     } else {
       batch.update(sales.doc(sale.id), {
         'items': remainingItems.map((i) => i.toMap()).toList(),
@@ -286,8 +297,8 @@ class SalesRepository {
       });
     }
 
-    // نقد يخرج فعلاً ⇒ حركة صندوق **بنوع الإرجاع لا المصروف**.
-    if (cashRefund > 0.009) {
+    // نقد يخرج فعلاً ⇒ حركة صندوق **بنوع الإرجاع لا المصروف** (عند الإرجاع الجزئي).
+    if (cashRefund > 0.009 && remainingItems.isNotEmpty) {
       batch.set(cashbox.doc(), {
         'type': CashboxType.saleReturn.code,
         'amount': cashRefund,
