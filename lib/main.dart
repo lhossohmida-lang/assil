@@ -23,24 +23,49 @@ import 'firebase_options.dart';
 import 'shared/services/scanner_service.dart';
 import 'shared/widgets/logo_watermark.dart';
 
+import 'features/printing/domain/models/print_settings.dart';
+import 'features/settings/domain/models/appearance_settings.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('[KMSAN] خطأ تهيئة Firebase: $e');
+  }
 
   // تخزين محلي بلا حدّ حجم: المحل يعمل ساعات بلا إنترنت أحياناً،
   // والبيع يجب ألّا يتوقّف. Firestore يُزامن وحده عند عودة الاتصال.
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
+  // يُحمى بـ try-catch لأن متصفحات الويب (كالوضع الخاص) قد تقيّد IndexedDB.
+  try {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (e) {
+    debugPrint('[KMSAN] تعذّر ضبط التخزين الدائم لـ Firestore: $e');
+    try {
+      FirebaseFirestore.instance.settings = const Settings();
+    } catch (_) {}
+  }
 
   // الإعدادات المحلية تُقرأ **قبل** الواجهة: أول طباعة كانت تخرج بإعدادات
   // افتراضية، والتطبيق كان يومض بالثيم الافتراضي قبل ثيم المستخدم.
-  final printSettings = await PrintSettingsStore().load();
-  final appearance = await AppearanceStore().load();
+  PrintSettings printSettings = const PrintSettings();
+  AppearanceSettings appearance = const AppearanceSettings();
+  try {
+    printSettings = await PrintSettingsStore().load();
+  } catch (e) {
+    debugPrint('[KMSAN] تعذّر قراءة إعدادات الطباعة: $e');
+  }
+  try {
+    appearance = await AppearanceStore().load();
+  } catch (e) {
+    debugPrint('[KMSAN] تعذّر قراءة إعدادات المظهر: $e');
+  }
 
   // تحميل خط Amiri مسبقاً حتى تكون أول طباعة سريعة كالبقية.
   unawaited(PdfFonts.warmUp());

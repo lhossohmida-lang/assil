@@ -230,13 +230,30 @@
       }
     });
 
-    // Hide splash screen when Flutter renders first frame
-    window.addEventListener('flutter-first-frame', function () {
+    // Hide splash screen when Flutter renders first frame (with safety timeout)
+    function hideSplash() {
       var splash = document.getElementById('loading-splash');
-      if (splash) {
+      if (splash && !splash.classList.contains('hidden')) {
         splash.classList.add('hidden');
-        setTimeout(function() { splash.remove(); }, 500);
+        setTimeout(function() {
+          if (splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 500);
       }
+    }
+
+    window.addEventListener('flutter-first-frame', hideSplash);
+
+    // Fallback: Ensure splash screen doesn't block the screen forever if an event is delayed
+    setTimeout(hideSplash, 6000);
+
+    // If an unhandled error happens during initialization, reveal it
+    window.addEventListener('error', function(event) {
+      console.error('[KMSAN Web Error]', event.error || event.message);
+      var sub = document.querySelector('.splash-sub');
+      if (sub && document.getElementById('loading-splash')) {
+        sub.innerHTML = '<span style="color:#C94A29;">جارٍ التحميل أو إعادة المحاولة...</span>';
+      }
+      setTimeout(hideSplash, 2000);
     });
   </script>
 
