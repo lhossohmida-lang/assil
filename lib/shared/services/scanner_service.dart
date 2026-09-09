@@ -9,6 +9,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/theme/app_theme.dart';
 import '../utils/formatters.dart';
 import '../../core/i18n/app_strings.dart';
+import 'scanner_web_stub.dart'
+    if (dart.library.html) 'scanner_web.dart' as web_scanner;
 
 /// المسح بالكاميرا.
 ///
@@ -32,15 +34,9 @@ class ScannerService {
 
   /// تنزيل وحدة ماسح غوغل مسبقاً (يُنادى مرة عند إقلاع التطبيق).
   static Future<void> prefetch() async {
-    // نترك المكتبة تختار محرك الويب المناسب للمتصفح: BarcodeDetector
-    // الأصلي في Chrome/Safari، وZXing-WASM كاحتياط في المتصفحات الأخرى.
-    // إجبار WASM قد يمنع فتح الكاميرا إذا حجبت الشبكة ملف WASM الخارجي.
+    // الويب يستعمل html5-qrcode مباشرةً داخل مسار الويب الخاص به.
     // لا يغيّر هذا أي شيء في Android: مسار APK يستعمل ماسح Google أدناه.
-    if (kIsWeb) {
-      MobileScannerPlatform.instance
-          .setWebBarcodeReader(WebBarcodeReader.auto);
-      return;
-    }
+    if (kIsWeb) return;
     if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<bool>('prefetch');
@@ -111,6 +107,14 @@ class ScannerService {
         ),
       );
       return null;
+    }
+
+    if (kIsWeb) {
+      return web_scanner.scanWeb(
+        context,
+        continuous: continuous,
+        onCode: onCode,
+      );
     }
 
     return showDialog<String>(
