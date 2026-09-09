@@ -23,7 +23,7 @@ const firebaseConfig = {
 // ⚠️ ضع هنا معرّف المتجر = uid صاحب المحل (تجده في لوحة Firebase →
 // Authentication، أو في مستند user_store_map).
 export const STORE_ID =
-  import.meta.env.VITE_STORE_ID || 'HCUHUXQezBPCpxJhRT8c9lZz3553';
+  import.meta.env.VITE_STORE_ID || 'pSE9f2jaeyeU12kChNV4EyYamwy1';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

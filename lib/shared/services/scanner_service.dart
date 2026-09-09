@@ -32,6 +32,15 @@ class ScannerService {
 
   /// تنزيل وحدة ماسح غوغل مسبقاً (يُنادى مرة عند إقلاع التطبيق).
   static Future<void> prefetch() async {
+    // BarcodeDetector يختلف دعمه بين المتصفحات وقد يفتح الكاميرا دون أن
+    // يقرأ باركود Code128/الأكواد الخطية بشكل موثوق. نختار ZXing-WASM
+    // للويب فقط لأنه يدعم باركود المنتجات في Chrome وSafari وFirefox.
+    // لا يغيّر هذا أي شيء في Android: مسار APK يستعمل ماسح Google أدناه.
+    if (kIsWeb) {
+      MobileScannerPlatform.instance
+          .setWebBarcodeReader(WebBarcodeReader.zxingWasm);
+      return;
+    }
     if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<bool>('prefetch');
@@ -128,7 +137,10 @@ class _MobileScannerDialog extends StatefulWidget {
 class _MobileScannerDialogState extends State<_MobileScannerDialog> {
   late final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
-    autoZoom: true,
+    // autoZoom غير مدعوم على الويب؛ إبقاؤه مفعّلاً هناك قد يجعل تشغيل
+    // MediaStream يفشل في بعض المتصفحات. لا يتغير سلوك Android/iOS.
+    autoZoom: !kIsWeb,
+    facing: CameraFacing.back,
     formats: const [
       BarcodeFormat.code128,
       BarcodeFormat.code39,
