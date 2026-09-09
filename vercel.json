@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "flutter pub get",
-  "buildCommand": "flutter build web --release",
+  "installCommand": "bash ./vercel-install.sh",
+  "buildCommand": "bash ./vercel-build.sh",
   "outputDirectory": "build/web",
   "framework": null,
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
