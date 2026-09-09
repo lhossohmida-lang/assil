@@ -32,13 +32,13 @@ class ScannerService {
 
   /// تنزيل وحدة ماسح غوغل مسبقاً (يُنادى مرة عند إقلاع التطبيق).
   static Future<void> prefetch() async {
-    // BarcodeDetector يختلف دعمه بين المتصفحات وقد يفتح الكاميرا دون أن
-    // يقرأ باركود Code128/الأكواد الخطية بشكل موثوق. نختار ZXing-WASM
-    // للويب فقط لأنه يدعم باركود المنتجات في Chrome وSafari وFirefox.
+    // نترك المكتبة تختار محرك الويب المناسب للمتصفح: BarcodeDetector
+    // الأصلي في Chrome/Safari، وZXing-WASM كاحتياط في المتصفحات الأخرى.
+    // إجبار WASM قد يمنع فتح الكاميرا إذا حجبت الشبكة ملف WASM الخارجي.
     // لا يغيّر هذا أي شيء في Android: مسار APK يستعمل ماسح Google أدناه.
     if (kIsWeb) {
       MobileScannerPlatform.instance
-          .setWebBarcodeReader(WebBarcodeReader.zxingWasm);
+          .setWebBarcodeReader(WebBarcodeReader.auto);
       return;
     }
     if (!_isAndroid) return;
@@ -214,11 +214,12 @@ class _MobileScannerDialogState extends State<_MobileScannerDialog> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    tooltip: tr('الإضاءة'),
-                    icon: const Icon(Icons.flashlight_on),
-                    onPressed: () => _controller.toggleTorch(),
-                  ),
+                  if (!kIsWeb)
+                    IconButton(
+                      tooltip: tr('الإضاءة'),
+                      icon: const Icon(Icons.flashlight_on),
+                      onPressed: () => _controller.toggleTorch(),
+                    ),
                   IconButton(
                     tooltip: tr('إغلاق'),
                     icon: const Icon(Icons.close),
